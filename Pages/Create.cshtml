@@ -1,0 +1,128 @@
+@page
+@model PropertyInventory.Pages.CreateModel
+@{
+    ViewData["Title"] = "Add New Property";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle"></i> @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-circle"></i> @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            <h2>Add New Property</h2>
+            <div class="alert alert-info mb-3">
+                <strong><i class="bi bi-info-circle"></i>Reminder:</strong> 
+                <ul class="mb-0">
+                    <li><strong>Property Code:</strong> A Property Code will be generated automatically (example: PROP-001, PROP-002, etc.) after saving. You don’t need to input it manually.</li>
+                    <li>Each property item will receive a unique ID that is automatically created after saving.</li>
+                    <li>If you enter a quantity greater than 1, multiple separate property items will be generated, each with its own unique ID.</li>
+                    <li>Example: If the quantity is 5, the system will generate 5 property items (#1, #2, #3, #4, #5), each with its own unique ID.</li>
+                </ul>
+            </div>
+            <hr />
+
+            <form method="post">
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label asp-for="Property.PropertyName" class="form-label"></label>
+                        <input asp-for="Property.PropertyName" class="form-control" />
+                        <span asp-validation-for="Property.PropertyName" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.Category" class="form-label"></label>
+                        <input asp-for="Property.Category" class="form-control" />
+                        <span asp-validation-for="Property.Category" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.Status" class="form-label"></label>
+                        <select asp-for="Property.Status" class="form-select" asp-items="Html.GetEnumSelectList<PropertyStatus>()"></select>
+                        <span asp-validation-for="Property.Status" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Property.Description" class="form-label"></label>
+                    <textarea asp-for="Property.Description" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Property.Description" class="text-danger"></span>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.Location" class="form-label"></label>
+                        <input asp-for="Property.Location" class="form-control" />
+                        <span asp-validation-for="Property.Location" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Quantity" class="form-label">Quantity (Number of Items)</label>
+                        <input asp-for="Quantity" class="form-control" type="number" min="1" value="1" />
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> 
+                            If the quantity is 5, there will be 5 separate property items, each with its own unique ID.
+                            Example: PROP-001, PROP-001-001, PROP-001-002, etc.
+                        </small>
+                        <span asp-validation-for="Quantity" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.DateReceived" class="form-label"></label>
+                        <input asp-for="Property.DateReceived" class="form-control" type="date" />
+                        <span asp-validation-for="Property.DateReceived" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.SerialNumber" class="form-label"></label>
+                        <input asp-for="Property.SerialNumber" class="form-control" />
+                        <span asp-validation-for="Property.SerialNumber" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Property.ImageUrl" class="form-label">Image Link (URL)</label>
+                    <input asp-for="Property.ImageUrl" class="form-control" type="url" placeholder="https://example.com/image.jpg" />
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle"></i> 
+                        Just provide the link/URL of the image. The actual image is not stored in the database — only the link is saved.
+                    </small>
+                    <span asp-validation-for="Property.ImageUrl" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Property.Remarks" class="form-label"></label>
+                    <textarea asp-for="Property.Remarks" class="form-control" rows="3"></textarea>
+                    <span asp-validation-for="Property.Remarks" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <a asp-page="Index" class="btn btn-secondary">Cancel</a>
+                    <button type="submit" class="btn btn-primary">Create Property</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+

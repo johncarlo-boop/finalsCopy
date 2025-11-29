@@ -1,0 +1,262 @@
+@page
+@model PropertyInventory.Pages.Account.LoginModel
+@{
+    ViewData["Title"] = "Login";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Property Inventory</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #006400 0%, #004d00 50%, #006400 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .split-container {
+            min-height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+        .logo-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+            animation: slideInFromLeft 0.6s ease-out;
+        }
+        .form-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+            animation: slideInFromRight 0.6s ease-out;
+        }
+        @@keyframes slideInFromLeft {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @@keyframes slideInFromRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @@keyframes slideOutToRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        @@keyframes slideOutToLeft {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+        .logo-section img {
+            max-width: 100%;
+            height: auto;
+            max-height: 400px;
+            margin-bottom: 30px;
+        }
+        .logo-section h1 {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .logo-section p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+        }
+        .login-card {
+            max-width: 450px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: white;
+        }
+        .btn-dark-green {
+            background-color: #006400;
+            border-color: #006400;
+            color: white;
+        }
+        .btn-dark-green:hover {
+            background-color: #004d00;
+            border-color: #004d00;
+            color: white;
+        }
+        .text-dark-green {
+            color: #006400 !important;
+        }
+        .input-group-text {
+            background-color: #006400;
+            color: white;
+            border-color: #006400;
+        }
+        .btn-outline-dark-green {
+            color: #006400;
+            border-color: #006400;
+        }
+        .btn-outline-dark-green:hover {
+            background-color: #006400;
+            border-color: #006400;
+            color: white;
+        }
+        @@media (max-width: 768px) {
+            .split-container {
+                flex-direction: column;
+            }
+            .logo-section {
+                padding: 20px;
+            }
+            .logo-section img {
+                max-height: 200px;
+            }
+            .logo-section h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="split-container">
+        <!-- Left Side - Logo Section -->
+        <div class="logo-section">
+            <img src="https://upload.wikimedia.org/wikipedia/en/b/b6/The_Colegio_de_Montalban_Seal.png" 
+                 alt="Colegio de Montalban Logo" />
+            <h1>Colegio de Montalban</h1>
+            <p>Property Inventory Management System</p>
+        </div>
+
+        <!-- Right Side - Login Form -->
+        <div class="form-section">
+            <div class="card login-card">
+                <div class="card-body p-5">
+                    <div class="text-center mb-4">
+                        <h2 class="mb-3">Login</h2>
+                    </div>
+
+                    @if (TempData["RegistrationSuccess"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle"></i> @TempData["RegistrationSuccess"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    @if (TempData["PasswordChanged"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle"></i> @TempData["PasswordChanged"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    @if (TempData["PasswordSet"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle"></i> @TempData["PasswordSet"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <form method="post">
+                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Email" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                <input asp-for="Input.Email" class="form-control" autocomplete="username" />
+                            </div>
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="Input.Password" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                <input asp-for="Input.Password" class="form-control" autocomplete="current-password" />
+                            </div>
+                            <span asp-validation-for="Input.Password" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3 form-check">
+                            <input asp-for="Input.RememberMe" class="form-check-input" />
+                            <label asp-for="Input.RememberMe" class="form-check-label"></label>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-dark-green btn-lg">
+                                <i class="bi bi-box-arrow-in-right"></i> Login
+                            </button>
+                        </div>
+                    </form>
+
+                    <div class="mt-4 text-center">
+                        <p class="mb-2">
+                            <a asp-page="./ForgotPassword" class="text-dark-green text-decoration-none">
+                                <i class="bi bi-question-circle"></i> Forgot Password?
+                            </a>
+                        </p>
+                        <div class="d-grid gap-2">
+                            <a asp-page="./Register" asp-route-reset="true" class="btn btn-outline-dark-green" id="signUpLink">
+                                <i class="bi bi-shield-lock"></i> Sign Up (Admin)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Add slide out animation when clicking Sign Up
+        document.getElementById('signUpLink')?.addEventListener('click', function(e) {
+            const logoSection = document.querySelector('.logo-section');
+            const formSection = document.querySelector('.form-section');
+            
+            if (logoSection && formSection) {
+                logoSection.style.animation = 'slideOutToRight 0.6s ease-in forwards';
+                formSection.style.animation = 'slideOutToLeft 0.6s ease-in forwards';
+            }
+        });
+    </script>
+</body>
+</html>
+

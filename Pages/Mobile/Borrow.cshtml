@@ -1,0 +1,250 @@
+@page "{id}"
+@model PropertyInventory.Pages.Mobile.BorrowModel
+@{
+    ViewData["Title"] = "Borrow Property";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-handbag"></i> Borrow Property</h5>
+                </div>
+                <div class="card-body">
+                    @if (TempData["SuccessMessage"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle"></i> @TempData["SuccessMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+                    @if (TempData["ErrorMessage"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle"></i> @TempData["ErrorMessage"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    @if (Model.Property != null)
+                    {
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3">Property Information</h6>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Property Code:</strong></div>
+                                <div class="col-8">@Model.Property.PropertyCode</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Property Name:</strong></div>
+                                <div class="col-8">@Model.Property.PropertyName</div>
+                            </div>
+                            @if (Model.QuantityBreakdown != null && Model.QuantityBreakdown.Count > 0)
+                            {
+                                <div class="alert alert-info mt-3 mb-3">
+                                    <h6 class="mb-2"><i class="bi bi-info-circle"></i> Quantity Breakdown</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <strong>Total Quantity:</strong> <span class="badge bg-primary">@Model.QuantityBreakdown["Total"]</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Available:</strong> <span class="badge bg-success">@Model.QuantityBreakdown["Available"]</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Borrowed (In Use):</strong> <span class="badge bg-warning">@Model.QuantityBreakdown["InUse"]</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Damaged:</strong> <span class="badge bg-danger">@Model.QuantityBreakdown["Damaged"]</span>
+                                        </div>
+                                        @if (Model.QuantityBreakdown["UnderMaintenance"] > 0)
+                                        {
+                                            <div class="col-6">
+                                                <strong>Under Maintenance:</strong> <span class="badge bg-info">@Model.QuantityBreakdown["UnderMaintenance"]</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                            
+                            @if (Model.IndividualItems != null && Model.IndividualItems.Count > 1)
+                            {
+                                <div class="card mb-3">
+                                    <div class="card-header bg-light">
+                                        <h6 class="mb-0"><i class="bi bi-list-ul"></i> Individual Items (@Model.IndividualItems.Count total)</h6>
+                                    </div>
+                                    <div class="card-body p-0">
+                                        <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+                                            <table class="table table-sm table-bordered mb-0">
+                                                <thead class="table-light sticky-top">
+                                                    <tr>
+                                                        <th>Tag Number</th>
+                                                        <th>Property Code</th>
+                                                        <th>Location</th>
+                                                        <th>Date Received</th>
+                                                        <th>Status</th>
+                                                        <th>Borrower</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (var item in Model.IndividualItems.OrderBy(i => i.SerialNumber))
+                                                    {
+                                                    <tr>
+                                                        <td><strong>@(item.SerialNumber ?? "N/A")</strong></td>
+                                                        <td>@item.PropertyCode</td>
+                                                        <td>@item.Location</td>
+                                                        <td>@(item.DateReceived?.ToString("MM/dd/yyyy") ?? "N/A")</td>
+                                                        <td>
+                                                            <span class="badge bg-@GetStatusColor(item.Status)">@item.Status</span>
+                                                        </td>
+                                                        <td>
+                                                            @if (item.Status == PropertyStatus.InUse && !string.IsNullOrEmpty(item.BorrowerName))
+                                                            {
+                                                                <span class="text-primary">@item.BorrowerName</span>
+                                                            }
+                                                            else
+                                                            {
+                                                                <span class="text-muted">-</span>
+                                                            }
+                                                        </td>
+                                                        <td>
+                                                            <div class="btn-group btn-group-sm" role="group">
+                                                                <a asp-page="/Mobile/EditProperty" asp-route-id="@item.Id" class="btn btn-outline-warning" title="Edit this item">
+                                                                    <i class="bi bi-pencil"></i>
+                                                                </a>
+                                                                @if (item.Status != PropertyStatus.InUse)
+                                                                {
+                                                                    <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#borrowModal@(item.Id)" title="Borrow this item">
+                                                                        <i class="bi bi-handbag"></i>
+                                                                    </button>
+                                                                }
+                                                                else
+                                                                {
+                                                                    <form method="post" asp-page-handler="Return" asp-route-propertyId="@item.Id" class="d-inline" onsubmit="return confirm('Are you sure you want to return this item?');">
+                                                                        <button type="submit" class="btn btn-outline-danger" title="Return this item">
+                                                                            <i class="bi bi-arrow-counterclockwise"></i>
+                                                                        </button>
+                                                                    </form>
+                                                                }
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    
+                                                    <!-- Borrow Modal for each item -->
+                                                    @if (item.Status != PropertyStatus.InUse)
+                                                    {
+                                                        <div class="modal fade" id="borrowModal@(item.Id)" tabindex="-1" aria-labelledby="borrowModalLabel@(item.Id)" aria-hidden="true">
+                                                            <div class="modal-dialog">
+                                                                <div class="modal-content">
+                                                                    <div class="modal-header">
+                                                                        <h5 class="modal-title" id="borrowModalLabel@(item.Id)">Borrow Property</h5>
+                                                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                                                    </div>
+                                                                    <form method="post" asp-page-handler="Borrow" asp-route-propertyId="@item.Id">
+                                                                        <div class="modal-body">
+                                                                            <div class="mb-3">
+                                                                                <label class="form-label">Property: <strong>@item.PropertyName</strong></label><br>
+                                                                                <small class="text-muted">Tag: @(item.SerialNumber ?? "N/A") | Code: @item.PropertyCode</small>
+                                                                            </div>
+                                                                            <div class="mb-3">
+                                                                                <label asp-for="BorrowerName" class="form-label">Borrower Name *</label>
+                                                                                <input asp-for="BorrowerName" class="form-control" placeholder="Enter borrower's name" required />
+                                                                                <span asp-validation-for="BorrowerName" class="text-danger"></span>
+                                                                            </div>
+                                                                            <div class="mb-3">
+                                                                                <label asp-for="ReturnDate" class="form-label">Return Date & Time *</label>
+                                                                                <input asp-for="ReturnDate" class="form-control" type="datetime-local" required />
+                                                                                <span asp-validation-for="ReturnDate" class="text-danger"></span>
+                                                                            </div>
+                                                                        </div>
+                                                                        <div class="modal-footer">
+                                                                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                                            <button type="submit" class="btn btn-success">Confirm Borrow</button>
+                                                                        </div>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    }
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <hr />
+
+                        <form method="post">
+                            <input type="hidden" asp-for="PropertyId" />
+                            <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                            <div class="mb-3">
+                                <label asp-for="BorrowerName" class="form-label">Borrower Name *</label>
+                                <input asp-for="BorrowerName" class="form-control" placeholder="Enter borrower's name" />
+                                <span asp-validation-for="BorrowerName" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="ReturnDate" class="form-label">Return Date & Time *</label>
+                                <input asp-for="ReturnDate" class="form-control" type="datetime-local" />
+                                <small class="form-text text-muted">Select the date and time when the property should be returned.</small>
+                                <span asp-validation-for="ReturnDate" class="text-danger"></span>
+                            </div>
+
+                            <div class="d-grid gap-2 mt-4">
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="bi bi-check-circle"></i> Confirm Borrow
+                                </button>
+                                <a asp-page="/Mobile/ScanResult" asp-route-propertyCode="@Model.Property.PropertyCode" class="btn btn-secondary">
+                                    <i class="bi bi-arrow-left"></i> Cancel
+                                </a>
+                            </div>
+                        </form>
+                    }
+                    else
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-circle"></i> Property not found.
+                        </div>
+                        <a asp-page="/Mobile/Dashboard" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Scanner
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetStatusColor(PropertyStatus status)
+    {
+        return status switch
+        {
+            PropertyStatus.Available => "success",
+            PropertyStatus.InUse => "primary",
+            PropertyStatus.UnderMaintenance => "warning",
+            PropertyStatus.Damaged => "danger",
+            _ => "secondary"
+        };
+    }
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Set minimum date and time to now
+        document.addEventListener('DOMContentLoaded', function() {
+            var returnDateInput = document.querySelector('input[type="datetime-local"]');
+            if (returnDateInput) {
+                var now = new Date();
+                // Format: YYYY-MM-DDTHH:mm (remove seconds and milliseconds)
+                var minDateTime = now.toISOString().slice(0, 16);
+                returnDateInput.setAttribute('min', minDateTime);
+            }
+        });
+    </script>
+}
+

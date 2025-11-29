@@ -1,0 +1,169 @@
+@page
+@model PropertyInventory.Pages.ProfileModel
+@{
+    ViewData["Title"] = "Profile";
+}
+
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-dark-green text-white">
+                    <h3 class="mb-0"><i class="bi bi-person-circle"></i> User Profile</h3>
+                </div>
+                <div class="card-body">
+                    @if (TempData["Success"] != null)
+                    {
+                        <div class="alert alert-success alert-dismissible fade show" role="alert">
+                            <i class="bi bi-check-circle"></i> @TempData["Success"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle"></i> @TempData["Error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <!-- Profile Picture Section -->
+                    <div class="text-center mb-4">
+                        <div class="mb-3">
+                            @if (!string.IsNullOrEmpty(Model.User?.ProfilePicturePath))
+                            {
+                                <img src="@Model.User.ProfilePicturePath" alt="Profile Picture" 
+                                     class="rounded-circle" style="width: 150px; height: 150px; object-fit: cover; border: 4px solid #006400;" />
+                            }
+                            else
+                            {
+                                <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center" 
+                                     style="width: 150px; height: 150px; border: 4px solid #006400;">
+                                    <i class="bi bi-person" style="font-size: 80px; color: white;"></i>
+                                </div>
+                            }
+                        </div>
+                        <form method="post" enctype="multipart/form-data" asp-page-handler="UploadProfilePicture">
+                            <div class="mb-3">
+                                <label for="profilePicture" class="form-label">Upload Profile Picture</label>
+                                <input type="file" class="form-control" id="profilePicture" name="profilePicture" accept="image/*" />
+                                <small class="form-text text-muted">Accepted formats: JPG, PNG, GIF (Max 5MB)</small>
+                            </div>
+                            <button type="submit" class="btn btn-dark-green">
+                                <i class="bi bi-upload"></i> Upload Picture
+                            </button>
+                        </form>
+                    </div>
+
+                    <hr />
+
+                    <!-- User Information Section -->
+                    <h5 class="mb-3"><i class="bi bi-info-circle"></i> User Information</h5>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Full Name:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            @Model.User?.FullName
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Email:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            @Model.User?.Email
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Account Created:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            @Model.User?.CreatedAt.ToString("MMMM dd, yyyy")
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <strong>Role:</strong>
+                        </div>
+                        <div class="col-md-8">
+                            @if (Model.User?.IsAdmin == true || Model.User?.UserType == UserType.Admin)
+                            {
+                                <span class="badge bg-success">Admin</span>
+                            }
+                            else
+                            {
+                                <span class="badge bg-info">Mobile User</span>
+                            }
+                        </div>
+                    </div>
+
+                    <hr />
+
+                    <!-- Change Password Section -->
+                    <h5 class="mb-3"><i class="bi bi-key"></i> Change Password</h5>
+                    <form method="post" asp-page-handler="ChangePassword">
+                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                        <div class="mb-3">
+                            <label asp-for="PasswordInput.CurrentPassword" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                <input asp-for="PasswordInput.CurrentPassword" class="form-control" autocomplete="current-password" />
+                            </div>
+                            <span asp-validation-for="PasswordInput.CurrentPassword" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="PasswordInput.NewPassword" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-key"></i></span>
+                                <input asp-for="PasswordInput.NewPassword" class="form-control" autocomplete="new-password" />
+                            </div>
+                            <span asp-validation-for="PasswordInput.NewPassword" class="text-danger"></span>
+                        </div>
+
+                        <div class="mb-3">
+                            <label asp-for="PasswordInput.ConfirmPassword" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
+                                <input asp-for="PasswordInput.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                            </div>
+                            <span asp-validation-for="PasswordInput.ConfirmPassword" class="text-danger"></span>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-dark-green">
+                                <i class="bi bi-check-circle"></i> Change Password
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .bg-dark-green {
+        background-color: #006400 !important;
+    }
+    .btn-dark-green {
+        background-color: #006400;
+        border-color: #006400;
+        color: white;
+    }
+    .btn-dark-green:hover {
+        background-color: #004d00;
+        border-color: #004d00;
+        color: white;
+    }
+</style>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}
+
+

@@ -1,0 +1,344 @@
+@page "{id}"
+@model PropertyInventory.Pages.EditModel
+@{
+    ViewData["Title"] = "Edit Property";
+}
+
+<div class="container">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            @if (TempData["SuccessMessage"] != null)
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle"></i> @TempData["SuccessMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            @if (TempData["ErrorMessage"] != null)
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-circle"></i> @TempData["ErrorMessage"]
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h2 class="mb-0">Edit Property</h2>
+            </div>
+            <div class="alert alert-info mb-3">
+                <strong><i class="bi bi-tag"></i> Property Code:</strong> <span class="fs-5">@Model.Property.PropertyCode</span>
+                <br>
+                <small>Tag Number: <strong>@(Model.Property.SerialNumber ?? "N/A")</strong></small>
+            </div>
+            
+            <div class="card mb-4">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0"><i class="bi bi-info-circle"></i> Status Breakdown (Property Code: @Model.Property.PropertyCode)</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row g-2">
+                        <div class="col-md-3">
+                            <strong>Total:</strong> <span class="badge bg-primary">@(Model.QuantityBreakdown != null && Model.QuantityBreakdown.ContainsKey("Total") ? Model.QuantityBreakdown["Total"] : Model.Property.Quantity)</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Available:</strong> <span class="badge bg-success">@(Model.QuantityBreakdown != null && Model.QuantityBreakdown.ContainsKey("Available") ? Model.QuantityBreakdown["Available"] : (Model.Property.Status == PropertyStatus.Available ? Model.Property.Quantity : 0))</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Borrowed:</strong> <span class="badge bg-warning">@(Model.QuantityBreakdown != null && Model.QuantityBreakdown.ContainsKey("InUse") ? Model.QuantityBreakdown["InUse"] : (Model.Property.Status == PropertyStatus.InUse ? Model.Property.Quantity : 0))</span>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Damaged:</strong> <span class="badge bg-danger">@(Model.QuantityBreakdown != null && Model.QuantityBreakdown.ContainsKey("Damaged") ? Model.QuantityBreakdown["Damaged"] : (Model.Property.Status == PropertyStatus.Damaged ? Model.Property.Quantity : 0))</span>
+                        </div>
+                        @{
+                            var underMaintenance = Model.QuantityBreakdown != null && Model.QuantityBreakdown.ContainsKey("UnderMaintenance") ? Model.QuantityBreakdown["UnderMaintenance"] : (Model.Property.Status == PropertyStatus.UnderMaintenance ? Model.Property.Quantity : 0);
+                        }
+                        @if (underMaintenance > 0)
+                        {
+                            <div class="col-md-3">
+                                <strong>Under Maintenance:</strong> <span class="badge bg-info">@underMaintenance</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            
+            @if (Model.IndividualItems != null && Model.IndividualItems.Count > 1)
+            {
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="bi bi-list-ul"></i> Individual Items (@Model.IndividualItems.Count total)</h6>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Tag Number</th>
+                                        <th>Property Code</th>
+                                        <th>Location</th>
+                                        <th>Status</th>
+                                        <th>Borrower</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var item in Model.IndividualItems.OrderBy(i => i.SerialNumber))
+                                    {
+                                        <tr class="@(item.Id == Model.Property.Id ? "table-warning" : "")">
+                                            <td><strong>@(item.SerialNumber ?? "N/A")</strong></td>
+                                            <td>@item.PropertyCode</td>
+                                            <td>@item.Location</td>
+                                            <td>
+                                                <span class="badge bg-@GetStatusColor(item.Status)">@item.Status</span>
+                                            </td>
+                                            <td>
+                                                @if (item.Status == PropertyStatus.InUse && !string.IsNullOrEmpty(item.BorrowerName))
+                                                {
+                                                    <span class="text-primary">@item.BorrowerName</span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="text-muted">-</span>
+                                                }
+                                            </td>
+                                            <td>
+                                                <div class="btn-group btn-group-sm" role="group">
+                                                    @if (item.Status == PropertyStatus.InUse && !string.IsNullOrEmpty(item.BorrowerName))
+                                                    {
+                                                        <button type="button" class="btn btn-outline-secondary" disabled title="This item is borrowed and cannot be edited">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <a asp-page="./Edit" asp-route-id="@item.Id" class="btn btn-outline-warning @(item.Id == Model.Property.Id ? "active" : "")" title="Edit this item">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </a>
+                                                    }
+                                                    <a asp-page="./Details" asp-route-id="@item.Id" class="btn btn-outline-info" title="View details">
+                                                        <i class="bi bi-eye"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            }
+            
+            <hr />
+
+            <form method="post">
+                <input type="hidden" asp-for="Property.Id" />
+                <div asp-validation-summary="ModelOnly" class="text-danger mb-3"></div>
+
+                @{
+                    var isBorrowed = Model.Property.Status == PropertyStatus.InUse && !string.IsNullOrWhiteSpace(Model.Property.BorrowerName);
+                }
+                
+                @if (isBorrowed)
+                {
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i> <strong>This property is currently borrowed by @Model.Property.BorrowerName.</strong> To edit other fields, please return it first by changing the status from "InUse" to another status.
+                    </div>
+                }
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.PropertyCode" class="form-label"></label>
+                        <input asp-for="Property.PropertyCode" class="form-control" readonly />
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i> The Property Code is automatically generated and cannot be changed.
+                        </small>
+                        <span asp-validation-for="Property.PropertyCode" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.PropertyName" class="form-label"></label>
+                        <input asp-for="Property.PropertyName" class="form-control" disabled="@isBorrowed" />
+                        <span asp-validation-for="Property.PropertyName" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.Category" class="form-label"></label>
+                        <input asp-for="Property.Category" class="form-control" disabled="@isBorrowed" />
+                        <span asp-validation-for="Property.Category" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.Status" class="form-label"></label>
+                        <select asp-for="Property.Status" class="form-select" asp-items="Model.StatusOptions"></select>
+                        <span asp-validation-for="Property.Status" class="text-danger"></span>
+                        @if (isBorrowed)
+                        {
+                            <small class="form-text text-muted">Change status to return this property and enable editing.</small>
+                        }
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.Quantity" class="form-label"></label>
+                        <input asp-for="Property.Quantity" class="form-control" type="number" min="1" disabled="@isBorrowed" />
+                        <span asp-validation-for="Property.Quantity" class="text-danger"></span>
+                        <small class="form-text text-muted">Total number of items. Increasing this will create new property entries with different property codes.</small>
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Property.Description" class="form-label"></label>
+                    <textarea asp-for="Property.Description" class="form-control" rows="3" disabled="@isBorrowed"></textarea>
+                    <span asp-validation-for="Property.Description" class="text-danger"></span>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.Location" class="form-label"></label>
+                        <input asp-for="Property.Location" class="form-control" disabled="@isBorrowed" />
+                        <span asp-validation-for="Property.Location" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.DateReceived" class="form-label"></label>
+                        <input asp-for="Property.DateReceived" class="form-control" type="date" disabled="@isBorrowed" />
+                        <span asp-validation-for="Property.DateReceived" class="text-danger"></span>
+                    </div>
+
+                    <div class="col-md-6 mb-3">
+                        <label asp-for="Property.SerialNumber" class="form-label"></label>
+                        <input asp-for="Property.SerialNumber" class="form-control" disabled="@isBorrowed" />
+                        <span asp-validation-for="Property.SerialNumber" class="text-danger"></span>
+                    </div>
+                </div>
+
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h5 class="mb-0"><i class="bi bi-arrow-left-right"></i> Borrowing Information</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="Property.BorrowerName" class="form-label">Borrower Name</label>
+                                <input asp-for="Property.BorrowerName" class="form-control" placeholder="Enter borrower name" />
+                                <span asp-validation-for="Property.BorrowerName" class="text-danger"></span>
+                                <small class="form-text text-muted">Required when status is "InUse"</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="Property.BorrowedDate" class="form-label">Borrowed Date & Time</label>
+                                <input asp-for="Property.BorrowedDate" class="form-control" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" />
+                                <span asp-validation-for="Property.BorrowedDate" class="text-danger"></span>
+                                <small class="form-text text-muted">Auto-set to current time if not specified</small>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label asp-for="Property.ReturnDate" class="form-label">Return Date & Time</label>
+                                <input asp-for="Property.ReturnDate" class="form-control" type="datetime-local" asp-format="{0:yyyy-MM-ddTHH:mm}" />
+                                <span asp-validation-for="Property.ReturnDate" class="text-danger"></span>
+                                <small class="form-text text-muted">Can be updated anytime</small>
+                            </div>
+                        </div>
+                        @if (Model.Property.Status == PropertyStatus.InUse && !string.IsNullOrWhiteSpace(Model.Property.BorrowerName))
+                        {
+                            <div class="alert alert-success small mb-0">
+                                <i class="bi bi-check-circle"></i> <strong>Currently Borrowed:</strong> 
+                                @Model.Property.BorrowerName
+                                @if (Model.Property.ReturnDate.HasValue)
+                                {
+                                    var returnDateLocal = Model.Property.ReturnDate.Value.ToLocalTime();
+                                    <span> | Return Date: <strong>@returnDateLocal.ToString("MM/dd/yyyy hh:mm tt")</strong></span>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="alert alert-info small mb-0">
+                                <i class="bi bi-info-circle"></i> 
+                                <strong>To borrow:</strong> Set status to "InUse" and enter borrower name. 
+                                <strong>To return:</strong> Change status from "InUse" to another status (borrower info will be cleared automatically).
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Property.ImageUrl" class="form-label">Image Link (URL)</label>
+                    <input asp-for="Property.ImageUrl" class="form-control" type="url" placeholder="https://example.com/image.jpg" disabled="@isBorrowed" />
+                    <small class="form-text text-muted">
+                        <i class="bi bi-info-circle"></i> 
+                        Only enter the image link/URL. The actual image is not stored in the database — only the link is saved.
+                    </small>
+                    @if (!string.IsNullOrEmpty(Model.Property.ImageUrl))
+                    {
+                        <div class="mt-2">
+                            <img src="@Model.Property.ImageUrl" alt="@Model.Property.PropertyName" class="img-thumbnail" style="max-height: 200px;" onerror="this.style.display='none'">
+                        </div>
+                    }
+                    <span asp-validation-for="Property.ImageUrl" class="text-danger"></span>
+                </div>
+
+                <div class="mb-3">
+                    <label asp-for="Property.Remarks" class="form-label"></label>
+                    <textarea asp-for="Property.Remarks" class="form-control" rows="3" disabled="@isBorrowed"></textarea>
+                    <span asp-validation-for="Property.Remarks" class="text-danger"></span>
+                </div>
+
+                <div class="d-flex justify-content-between">
+                    <div>
+                        <a asp-page="Index" class="btn btn-secondary">Cancel</a>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                        <form method="post" asp-page-handler="Delete" asp-route-id="@Model.Property.Id" 
+                              onsubmit="return confirm('Are you sure you want to delete property @Model.Property.PropertyCode? This action cannot be undone.');" class="d-inline">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-trash"></i> Delete
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetUniqueIdNumber(string id)
+    {
+        if (string.IsNullOrEmpty(id))
+            return "0";
+        
+        // Extract numeric characters from the ID
+        var numbers = new string(id.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(numbers))
+        {
+            // If no numbers, use hash code
+            return Math.Abs(id.GetHashCode()).ToString();
+        }
+        
+        // Return last 6 digits or all if less than 6
+        return numbers.Length > 6 ? numbers.Substring(numbers.Length - 6) : numbers;
+    }
+    
+    private string GetStatusColor(PropertyStatus status)
+    {
+        return status switch
+        {
+            PropertyStatus.Available => "success",
+            PropertyStatus.InUse => "primary",
+            PropertyStatus.UnderMaintenance => "warning",
+            PropertyStatus.Damaged => "danger",
+            _ => "secondary"
+        };
+    }
+}
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+
+

@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Colegio de Montalban</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+</head>
+<body class="d-flex flex-column min-vh-100">
+    <header>
+        <nav class="navbar navbar-expand-sm navbar-dark fixed-top" style="background-color: #006400; z-index: 1030;">
+            <div class="container-fluid">
+                <a class="navbar-brand d-flex align-items-center" asp-page="/Index">
+                    <img src="https://upload.wikimedia.org/wikipedia/en/b/b6/The_Colegio_de_Montalban_Seal.png" 
+                         alt="Colegio de Montalban Logo" 
+                         style="height: 40px; width: auto; margin-right: 10px;" />
+                    <span>Colegio de Montalban</span>
+                </a>
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="navbarNav">
+                    <ul class="navbar-nav me-auto">
+                        <li class="nav-item">
+                            <a class="nav-link" asp-page="/Index">
+                                <i class="bi bi-house"></i> Home
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-page="/Gallery">
+                                <i class="bi bi-images"></i> Gallery
+                            </a>
+                        </li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-page="/Analytics">
+                                    <i class="bi bi-graph-up"></i> Analytics
+                                </a>
+                            </li>
+                        }
+                        <li class="nav-item">
+                            <a class="nav-link" asp-page="/Create">
+                                <i class="bi bi-plus-circle"></i> Add Property
+                            </a>
+                        </li>
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link position-relative" asp-page="/Admin/AccountRequests">
+                                    <i class="bi bi-people"></i> Account Requests
+                                    @try
+                                    {
+                                        @await Component.InvokeAsync("PendingAccountRequests")
+                                    }
+                                    catch
+                                    {
+                                        // Silently fail if ViewComponent has issues
+                                    }
+                                </a>
+                            </li>
+                        }
+                    </ul>
+                    <ul class="navbar-nav">
+                        @if (User.IsInRole("Admin"))
+                        {
+                            <li class="nav-item dropdown me-2">
+                                <a class="nav-link position-relative" href="#" id="notificationDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="bi bi-bell"></i>
+                                    <span class="notification-badge badge bg-danger rounded-pill d-none" id="notificationBadge">0</span>
+                                </a>
+                                <div class="dropdown-menu dropdown-menu-end p-0 shadow notifications-dropdown" aria-labelledby="notificationDropdown">
+                                    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                                        <strong>Notifications</strong>
+                                        <button type="button" class="btn btn-link btn-sm text-decoration-none" id="clearNotifications">Clear all</button>
+                                    </div>
+                                    <div class="notification-list" id="notificationList">
+                                        <div class="text-center text-muted small py-3" id="notificationEmpty">No notifications yet.</div>
+                                    </div>
+                                </div>
+                            </li>
+                        }
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center gap-2" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown">
+                                @await Component.InvokeAsync("ProfilePicture")
+                                <span>@User.Identity?.Name</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li>
+                                    <a class="dropdown-item" asp-page="/Profile">
+                                        <i class="bi bi-person"></i> Profile
+                                    </a>
+                                </li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li>
+                                    <form asp-page="/Account/Logout" method="post" class="d-inline">
+                                        <button type="submit" class="dropdown-item">
+                                            <i class="bi bi-box-arrow-right"></i> Logout
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+    </header>
+
+    <div class="container-fluid flex-grow-1" style="margin-top: 76px; padding-top: 1rem;">
+        <main role="main">
+            @RenderBody()
+        </main>
+    </div>
+
+    <footer class="mt-auto py-4 bg-light text-center">
+        <div class="container">
+            <p class="text-muted mb-0">
+                &copy; 2025 - Property Inventory Management System - Colegio de Montalban
+            </p>
+        </div>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@@microsoft/signalr@8.0.0/dist/browser/signalr.min.js"></script>
+    <script type="module" src="~/js/firebase-init.js" asp-append-version="true"></script>
+    <script src="~/js/propertyUpdates.js" asp-append-version="true"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>
+

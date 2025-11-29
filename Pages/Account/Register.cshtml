@@ -1,0 +1,277 @@
+@page
+@model PropertyInventory.Pages.Account.RegisterModel
+@{
+    ViewData["Title"] = "Sign Up";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Property Inventory</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #006400 0%, #004d00 50%, #006400 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+        }
+        .split-container {
+            min-height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+        .logo-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+            animation: slideInFromRight 0.6s ease-out;
+        }
+        .form-section {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 40px;
+            transition: transform 0.6s ease-in-out, opacity 0.6s ease-in-out;
+            animation: slideInFromLeft 0.6s ease-out;
+        }
+        @@keyframes slideInFromLeft {
+            from {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @@keyframes slideInFromRight {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        @@keyframes slideOutToRight {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+        }
+        @@keyframes slideOutToLeft {
+            from {
+                transform: translateX(0);
+                opacity: 1;
+            }
+            to {
+                transform: translateX(-100%);
+                opacity: 0;
+            }
+        }
+        .logo-section img {
+            max-width: 100%;
+            height: auto;
+            max-height: 400px;
+            margin-bottom: 30px;
+        }
+        .logo-section h1 {
+            color: white;
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .logo-section p {
+            color: rgba(255, 255, 255, 0.9);
+            font-size: 1.1rem;
+        }
+        .register-card {
+            max-width: 500px;
+            width: 100%;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            background: white;
+        }
+        .btn-dark-green {
+            background-color: #006400;
+            border-color: #006400;
+            color: white;
+        }
+        .btn-dark-green:hover {
+            background-color: #004d00;
+            border-color: #004d00;
+            color: white;
+        }
+        .text-dark-green {
+            color: #006400 !important;
+        }
+        .input-group-text {
+            background-color: #006400;
+            color: white;
+            border-color: #006400;
+        }
+        .btn-outline-dark-green {
+            color: #006400;
+            border-color: #006400;
+        }
+        .btn-outline-dark-green:hover {
+            background-color: #006400;
+            border-color: #006400;
+            color: white;
+        }
+        @@media (max-width: 768px) {
+            .split-container {
+                flex-direction: column;
+            }
+            .logo-section {
+                padding: 20px;
+            }
+            .logo-section img {
+                max-height: 200px;
+            }
+            .logo-section h1 {
+                font-size: 1.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="split-container">
+        <!-- Left Side - Sign Up Form -->
+        <div class="form-section">
+            <div class="card register-card">
+                <div class="card-body p-5">
+                    @if (TempData["Error"] != null)
+                    {
+                        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                            <i class="bi bi-exclamation-circle"></i> @TempData["Error"]
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    }
+
+                    <div class="text-center mb-4">
+                        <h2 class="mb-3">Sign Up</h2>
+                    </div>
+
+                        <form method="post">
+                            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                            <div class="mb-3">
+                                <label asp-for="Input.FullName" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                    <input asp-for="Input.FullName" class="form-control" autocomplete="name" />
+                                </div>
+                                <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Input.Email" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                    <input asp-for="Input.Email" class="form-control" autocomplete="username" />
+                                </div>
+                                <span asp-validation-for="Input.Email" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Input.Password" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                    <input asp-for="Input.Password" class="form-control" autocomplete="new-password" />
+                                </div>
+                                <span asp-validation-for="Input.Password" class="text-danger"></span>
+                            </div>
+
+                            <div class="mb-3">
+                                <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                                    <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" />
+                                </div>
+                                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                            </div>
+
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-dark-green btn-lg" id="submitBtn">
+                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                    <span class="btn-text"><i class="bi bi-person-plus"></i> Sign Up</span>
+                                </button>
+                            </div>
+                        </form>
+                    }
+
+                    <div class="mt-4 text-center">
+                        <p class="mb-0">
+                            <a asp-page="./Login" class="text-dark-green" id="loginLink">
+                                <i class="bi bi-box-arrow-in-right"></i> Already have an account? Login
+                            </a>
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Side - Logo Section -->
+        <div class="logo-section">
+            <img src="https://upload.wikimedia.org/wikipedia/en/b/b6/The_Colegio_de_Montalban_Seal.png" 
+                 alt="Colegio de Montalban Logo" />
+            <h1>Colegio de Montalban</h1>
+            <p>Property Inventory Management System</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        // Add slide out animation when clicking Login
+        document.getElementById('loginLink')?.addEventListener('click', function(e) {
+            const logoSection = document.querySelector('.logo-section');
+            const formSection = document.querySelector('.form-section');
+            
+            if (logoSection && formSection) {
+                logoSection.style.animation = 'slideOutToLeft 0.6s ease-in forwards';
+                formSection.style.animation = 'slideOutToRight 0.6s ease-in forwards';
+            }
+        });
+
+        // Loading spinner and double-submit protection
+        document.querySelector('form')?.addEventListener('submit', function(e) {
+            if (!this.checkValidity()) return;
+            
+            const btn = document.getElementById('submitBtn');
+            const spinner = btn.querySelector('.spinner-border');
+            const btnText = btn.querySelector('.btn-text');
+            
+            btn.disabled = true;
+            spinner.classList.remove('d-none');
+            btnText.textContent = ' Creating Account...';
+        });
+
+        // Clear password fields on load if there are errors to prevent sync issues
+        window.addEventListener('load', function() {
+            if (document.querySelector('.validation-summary-errors') || document.querySelector('.field-validation-error')) {
+                const passInputs = document.querySelectorAll('input[type="password"]');
+                passInputs.forEach(input => input.value = '');
+            }
+        });
+    </script>
+</body>
+</html>
+

@@ -1,0 +1,226 @@
+@page
+@model PropertyInventory.Pages.GalleryModel
+@{
+    ViewData["Title"] = "Property Gallery - Colegio de Montalban";
+}
+
+<div class="container-fluid">
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle"></i> @TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-circle"></i> @TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div class="d-flex align-items-center">
+            <img src="https://upload.wikimedia.org/wikipedia/en/b/b6/The_Colegio_de_Montalban_Seal.png" 
+                 alt="Colegio de Montalban Logo" 
+                 style="height: 60px; width: auto; margin-right: 15px;" />
+            <div>
+                <h2 class="mb-0">Property Gallery</h2>
+                <small class="text-muted">Colegio de Montalban</small>
+            </div>
+        </div>
+        <a asp-page="Index" class="btn btn-secondary">
+            <i class="bi bi-list"></i> List View
+        </a>
+    </div>
+
+    <!-- Search and Filter Section -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label for="SearchString" class="form-label">Search</label>
+                    <input type="text" class="form-control" id="SearchString" name="SearchString"
+                           value="@Model.SearchString" placeholder="Search by name, code, or location...">
+                </div>
+                <div class="col-md-3">
+                    <label for="CategoryFilter" class="form-label">Category</label>
+                    <select class="form-select" id="CategoryFilter" name="CategoryFilter">
+                        <option value="">All Categories</option>
+                        @foreach (var category in Model.Categories)
+                        {
+                            <option value="@category" selected="@(Model.CategoryFilter == category)">
+                                @category
+                            </option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="StatusFilter" class="form-label">Status</label>
+                    <select class="form-select" id="StatusFilter" name="StatusFilter">
+                        <option value="">All Statuses</option>
+                        @foreach (var status in Enum.GetValues(typeof(PropertyStatus)))
+                        {
+                            <option value="@status" selected="@(Model.StatusFilter?.ToString() == status.ToString())">
+                                @status
+                            </option>
+                        }
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-outline-primary flex-fill">Filter</button>
+                    <a asp-page="./Gallery" class="btn btn-outline-secondary flex-fill">Clear</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Gallery Grid -->
+    @if (Model.Properties.Any())
+    {
+        <div class="row g-3">
+            @foreach (var property in Model.Properties)
+            {
+                <div class="col-md-3 col-lg-2">
+                    <div class="card h-100 shadow-sm gallery-card">
+                        @if (!string.IsNullOrEmpty(property.ImageUrl))
+                        {
+                            <div class="gallery-image-container">
+                                <img src="@property.ImageUrl" class="card-img-top gallery-image" alt="@property.PropertyName" 
+                                     style="height: 180px; object-fit: cover; cursor: pointer;" 
+                                     data-bs-toggle="modal" data-bs-target="#propertyModal@(property.Id)"
+                                     onerror="this.src='https://via.placeholder.com/300x250?text=No+Image'">
+                                <div class="gallery-overlay">
+                                    <i class="bi bi-eye-fill"></i>
+                                    <p>Click to view details</p>
+                                </div>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center gallery-placeholder" 
+                                 style="height: 180px; cursor: pointer;"
+                                 data-bs-toggle="modal" data-bs-target="#propertyModal@(property.Id)">
+                                <i class="bi bi-image text-muted" style="font-size: 2rem;"></i>
+                            </div>
+                        }
+                        <div class="card-body p-2">
+                            <h6 class="card-title mb-1" style="font-size: 0.9rem;">@property.PropertyName</h6>
+                            <p class="card-text mb-1" style="font-size: 0.75rem;">
+                                <span class="badge bg-primary mb-1" style="font-size: 0.65rem;">ID: #@GetUniqueIdNumber(property.Id)</span><br>
+                                <small class="text-muted" style="font-size: 0.7rem;">Code: @property.PropertyCode</small><br>
+                                <span class="badge bg-@GetStatusColor(property.Status)" style="font-size: 0.65rem;">@property.Status</span><br>
+                                <span class="badge bg-info mt-1" style="font-size: 0.65rem;">Qty: @property.Quantity</span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal for each property -->
+                <div class="modal fade" id="propertyModal@(property.Id)" tabindex="-1" aria-labelledby="propertyModalLabel@(property.Id)" aria-hidden="true">
+                    <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="propertyModalLabel@(property.Id)">
+                                    @property.PropertyName
+                                </h5>
+                                <span class="badge bg-primary fs-6 me-2">ID: #@GetUniqueIdNumber(property.Id)</span>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                @if (!string.IsNullOrEmpty(property.ImageUrl))
+                                {
+                                    <div class="text-center mb-3">
+                                        <img src="@property.ImageUrl" class="img-fluid rounded" alt="@property.PropertyName" 
+                                             style="max-height: 400px;" onerror="this.style.display='none'">
+                                    </div>
+                                }
+                                <div class="row">
+                                    <div class="col-md-6 mb-2">
+                                        <strong>Property Code:</strong> @property.PropertyCode
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <strong>Category:</strong> @property.Category
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <strong>Location:</strong> @property.Location
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <strong>Status:</strong> 
+                                        <span class="badge bg-@GetStatusColor(property.Status)">@property.Status</span>
+                                    </div>
+                                    <div class="col-md-6 mb-2">
+                                        <strong>Quantity:</strong> 
+                                        <span class="badge bg-info">@property.Quantity</span>
+                                    </div>
+                                    @if (!string.IsNullOrEmpty(property.Description))
+                                    {
+                                        <div class="col-12 mb-2">
+                                            <strong>Description:</strong> @property.Description
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <a asp-page="./Details" asp-route-id="@property.Id" class="btn btn-info">
+                                    <i class="bi bi-eye"></i> View Details
+                                </a>
+                                <a asp-page="./Edit" asp-route-id="@property.Id" class="btn btn-warning">
+                                    <i class="bi bi-pencil"></i> Edit
+                                </a>
+                                <a asp-page="./QrCode" asp-route-id="@property.Id" class="btn btn-success" title="Download QR Code">
+                                    <i class="bi bi-qr-code"></i> QR Code
+                                </a>
+                                <form method="post" asp-page-handler="Delete" asp-route-id="@property.Id" 
+                                      onsubmit="return confirm('Are you sure you want to delete property @property.PropertyCode? This action cannot be undone.');" class="d-inline">
+                                    <button type="submit" class="btn btn-danger">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
+    else
+    {
+        <div class="alert alert-info text-center">
+            <i class="bi bi-info-circle"></i> No properties found.
+            <a asp-page="Create">Create a new property</a> to get started.
+        </div>
+    }
+</div>
+
+@functions {
+    private string GetStatusColor(PropertyStatus status)
+    {
+        return status switch
+        {
+            PropertyStatus.Available => "success",
+            PropertyStatus.InUse => "primary",
+            PropertyStatus.UnderMaintenance => "warning",
+            PropertyStatus.Damaged => "danger",
+            _ => "secondary"
+        };
+    }
+    
+    private string GetUniqueIdNumber(string id)
+    {
+        if (string.IsNullOrEmpty(id))
+            return "0";
+        
+        // Extract numeric characters from the ID
+        var numbers = new string(id.Where(char.IsDigit).ToArray());
+        if (string.IsNullOrEmpty(numbers))
+        {
+            // If no numbers, use hash code
+            return Math.Abs(id.GetHashCode()).ToString();
+        }
+        
+        // Return last 6 digits or all if less than 6
+        return numbers.Length > 6 ? numbers.Substring(numbers.Length - 6) : numbers;
+    }
+}

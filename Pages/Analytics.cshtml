@@ -1,0 +1,438 @@
+@page
+@model PropertyInventory.Pages.AnalyticsModel
+@using System.Text.Json
+@using System.Linq
+@{
+    ViewData["Title"] = "Property Analytics";
+    var jsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+    var statusLabelData = Model.StatusCounts.Count > 0
+        ? Model.StatusCounts.Keys.ToArray()
+        : new[] { "No Data" };
+    var statusValueData = Model.StatusCounts.Count > 0
+        ? Model.StatusCounts.Values.ToArray()
+        : new[] { 0 };
+    var categoryLabelData = Model.CategoryCounts.Count > 0
+        ? Model.CategoryCounts.Keys.ToArray()
+        : new[] { "No Data" };
+    var categoryValueData = Model.CategoryCounts.Count > 0
+        ? Model.CategoryCounts.Values.ToArray()
+        : new[] { 0 };
+    var borrowingTrendLabels = Model.BorrowingTrends.Count > 0
+        ? Model.BorrowingTrends.Keys.ToArray()
+        : new[] { "No Data" };
+    var borrowingTrendValues = Model.BorrowingTrends.Count > 0
+        ? Model.BorrowingTrends.Values.ToArray()
+        : new[] { 0 };
+    var topBorrowerLabels = Model.TopBorrowers.OrderByDescending(kvp => kvp.Value).Take(10).Select(kvp => kvp.Key).ToArray();
+    var topBorrowerValues = Model.TopBorrowers.OrderByDescending(kvp => kvp.Value).Take(10).Select(kvp => kvp.Value).ToArray();
+    // Get status data
+    var filteredStatusData = Model.StatusCounts
+        .ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
+    var statusLabelDataFiltered = filteredStatusData.Count > 0
+        ? filteredStatusData.Keys.ToArray()
+        : new[] { "No Data" };
+    var statusValueDataFiltered = filteredStatusData.Count > 0
+        ? filteredStatusData.Values.ToArray()
+        : new[] { 0 };
+    var borrowingByCategoryLabels = Model.BorrowingByCategory.Count > 0
+        ? Model.BorrowingByCategory.Keys.ToArray()
+        : new[] { "No Data" };
+    var borrowingByCategoryValues = Model.BorrowingByCategory.Count > 0
+        ? Model.BorrowingByCategory.Values.ToArray()
+        : new[] { 0 };
+}
+
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+        <div>
+            <h2 class="mb-0">Analytics Dashboard</h2>
+            <p class="text-muted mb-0">Visual overview of property usage and health.</p>
+        </div>
+        <a asp-page="/Index" class="btn btn-outline-secondary">
+            <i class="bi bi-arrow-left"></i> Back to Dashboard
+        </a>
+    </div>
+
+    <div class="row g-2 mb-3">
+        <div class="col-md-3">
+            <a asp-page="/Index" class="text-decoration-none">
+                <div class="card stats-card text-white bg-primary h-100 clickable-card">
+                    <div class="card-body">
+                        <p class="text-white-50 mb-1">Total Properties</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">@Model.TotalProperties</h2>
+                            <i class="bi bi-collection stats-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a asp-page="/Index" asp-route-StatusFilter="InUse" class="text-decoration-none">
+                <div class="card stats-card text-white bg-success h-100 clickable-card">
+                    <div class="card-body">
+                        <p class="text-white-50 mb-1">Active (In Use)</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">@Model.ActiveProperties</h2>
+                            <i class="bi bi-toggle-on stats-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a asp-page="/Index" asp-route-StatusFilter="UnderMaintenance" class="text-decoration-none">
+                <div class="card stats-card text-white bg-warning h-100 clickable-card">
+                    <div class="card-body">
+                        <p class="text-white-50 mb-1">Under Maintenance</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">@Model.UnderMaintenance</h2>
+                            <i class="bi bi-tools stats-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a asp-page="/Index" asp-route-StatusFilter="Damaged" class="text-decoration-none">
+                <div class="card stats-card text-white bg-danger h-100 clickable-card">
+                    <div class="card-body">
+                        <p class="text-white-50 mb-1">Damaged Items</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">@Model.DamagedProperties</h2>
+                            <i class="bi bi-exclamation-octagon stats-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <!-- Borrowing Statistics Row -->
+    <div class="row g-2 mb-3">
+        <div class="col-md-3">
+            <a asp-page="/Index" asp-route-StatusFilter="InUse" class="text-decoration-none">
+                <div class="card stats-card text-white h-100 clickable-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <div class="card-body">
+                        <p class="text-white-50 mb-1">Currently Borrowed</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">@Model.BorrowedProperties</h2>
+                            <i class="bi bi-handbag stats-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a asp-page="/Index" asp-route-StatusFilter="InUse" class="text-decoration-none">
+                <div class="card stats-card text-white bg-danger h-100 clickable-card">
+                    <div class="card-body">
+                        <p class="text-white-50 mb-1">Overdue Properties</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">@Model.OverdueProperties</h2>
+                            <i class="bi bi-exclamation-triangle stats-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a asp-page="/Index" asp-route-StatusFilter="InUse" class="text-decoration-none">
+                <div class="card stats-card text-white h-100 clickable-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                    <div class="card-body">
+                        <p class="text-white-50 mb-1">Borrowed (Last 7 Days)</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">@Model.RecentlyBorrowed7Days</h2>
+                            <i class="bi bi-calendar-week stats-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col-md-3">
+            <a asp-page="/Index" asp-route-StatusFilter="InUse" class="text-decoration-none">
+                <div class="card stats-card text-white h-100 clickable-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
+                    <div class="card-body">
+                        <p class="text-white-50 mb-1">Borrowed (Last 30 Days)</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <h2 class="mb-0">@Model.RecentlyBorrowed30Days</h2>
+                            <i class="bi bi-calendar-month stats-icon"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+
+    <div class="row g-3 mb-3">
+        <div class="col-lg-7">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0"><i class="bi bi-bar-chart-line"></i> Property Status Overview</h6>
+                    <span class="text-muted small">Status-based distribution</span>
+                </div>
+                <div class="card-body py-2">
+                    <div class="chart-wrapper">
+                        <canvas id="statusChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-5">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Category Breakdown</h6>
+                    <span class="text-muted small">Top property categories</span>
+                </div>
+                <div class="card-body py-2">
+                    <div class="chart-wrapper">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Borrowing Analytics Row -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-8">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0"><i class="bi bi-graph-up-arrow"></i> Borrowing Trends (Last 30 Days)</h6>
+                    <span class="text-muted small">Daily borrowing activity</span>
+                </div>
+                <div class="card-body py-2">
+                    <div class="chart-wrapper">
+                        <canvas id="borrowingTrendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0"><i class="bi bi-people"></i> Top Borrowers</h6>
+                    <span class="text-muted small">Most active borrowers</span>
+                </div>
+                <div class="card-body">
+                    @if (Model.TopBorrowers.Count > 0)
+                    {
+                        <div class="list-group list-group-flush">
+                            @{
+                                var topBorrowers = Model.TopBorrowers.OrderByDescending(kvp => kvp.Value).Take(10);
+                            }
+                            @foreach (var borrower in topBorrowers)
+                            {
+                                <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                    <div>
+                                        <i class="bi bi-person-circle text-primary me-2"></i>
+                                        <span class="fw-semibold">@borrower.Key</span>
+                                    </div>
+                                    <span class="badge bg-primary rounded-pill">@borrower.Value</span>
+                                </div>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="text-center text-muted py-4">
+                            <i class="bi bi-inbox" style="font-size: 2rem;"></i>
+                            <p class="mt-2 mb-0">No borrowing data yet</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Borrowing Graph -->
+    <div class="row g-3 mb-3">
+        <div class="col-lg-12">
+            <div class="card h-100">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Borrowing by Category</h6>
+                    <span class="text-muted small">Currently borrowed properties by category</span>
+                </div>
+                <div class="card-body py-2">
+                    <div class="chart-wrapper">
+                        <canvas id="borrowingByCategoryChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        (function () {
+            const statusLabels = @Html.Raw(JsonSerializer.Serialize(statusLabelDataFiltered, jsonOptions));
+            const statusValues = @Html.Raw(JsonSerializer.Serialize(statusValueDataFiltered, jsonOptions));
+            const categoryLabels = @Html.Raw(JsonSerializer.Serialize(categoryLabelData, jsonOptions));
+            const categoryValues = @Html.Raw(JsonSerializer.Serialize(categoryValueData, jsonOptions));
+            const borrowingTrendLabels = @Html.Raw(JsonSerializer.Serialize(borrowingTrendLabels, jsonOptions));
+            const borrowingTrendValues = @Html.Raw(JsonSerializer.Serialize(borrowingTrendValues, jsonOptions));
+            const borrowingByCategoryLabels = @Html.Raw(JsonSerializer.Serialize(borrowingByCategoryLabels, jsonOptions));
+            const borrowingByCategoryValues = @Html.Raw(JsonSerializer.Serialize(borrowingByCategoryValues, jsonOptions));
+
+            const palette = [
+                "#0d6efd", "#198754", "#ffc107", "#dc3545",
+                "#6f42c1", "#fd7e14", "#20c997", "#6610f2"
+            ];
+
+            const chartBaseOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 900,
+                    easing: "easeOutQuart"
+                }
+            };
+
+            const statusCtx = document.getElementById("statusChart");
+            if (statusCtx) {
+                new Chart(statusCtx, {
+                    type: "bar",
+                    data: {
+                        labels: statusLabels,
+                        datasets: [{
+                            label: "Properties",
+                            data: statusValues,
+                            backgroundColor: statusLabels.map((_, idx) => palette[idx % palette.length])
+                        }]
+                    },
+                    options: {
+                        ...chartBaseOptions,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { precision: 0 }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `${context.dataset.label}: ${context.formattedValue}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            const categoryCtx = document.getElementById("categoryChart");
+            if (categoryCtx) {
+                new Chart(categoryCtx, {
+                    type: "doughnut",
+                    data: {
+                        labels: categoryLabels,
+                        datasets: [{
+                            data: categoryValues,
+                            backgroundColor: categoryLabels.map((_, idx) => palette[idx % palette.length]),
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        ...chartBaseOptions,
+                        plugins: {
+                            legend: { position: "bottom" }
+                        }
+                    }
+                });
+            }
+
+            const borrowingTrendCtx = document.getElementById("borrowingTrendChart");
+            if (borrowingTrendCtx) {
+                new Chart(borrowingTrendCtx, {
+                    type: "line",
+                    data: {
+                        labels: borrowingTrendLabels,
+                        datasets: [{
+                            label: "Properties Borrowed",
+                            data: borrowingTrendValues,
+                            borderColor: "#667eea",
+                            backgroundColor: "rgba(102, 126, 234, 0.1)",
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 3,
+                            pointHoverRadius: 5
+                        }]
+                    },
+                    options: {
+                        ...chartBaseOptions,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { precision: 0 }
+                            },
+                            x: {
+                                ticks: {
+                                    maxRotation: 45,
+                                    minRotation: 45
+                                }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: true, position: "top" },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Properties: ${context.formattedValue}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            const borrowingByCategoryCtx = document.getElementById("borrowingByCategoryChart");
+            if (borrowingByCategoryCtx) {
+                new Chart(borrowingByCategoryCtx, {
+                    type: "bar",
+                    data: {
+                        labels: borrowingByCategoryLabels,
+                        datasets: [{
+                            label: "Borrowed Properties",
+                            data: borrowingByCategoryValues,
+                            backgroundColor: borrowingByCategoryLabels.map((_, idx) => {
+                                const colors = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe", "#43e97b", "#38f9d7"];
+                                return colors[idx % colors.length];
+                            }),
+                            borderColor: borrowingByCategoryLabels.map((_, idx) => {
+                                const colors = ["#667eea", "#764ba2", "#f093fb", "#f5576c", "#4facfe", "#00f2fe", "#43e97b", "#38f9d7"];
+                                return colors[idx % colors.length];
+                            }),
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        ...chartBaseOptions,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                ticks: { precision: 0 }
+                            }
+                        },
+                        plugins: {
+                            legend: { display: true, position: "top" },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        return `Borrowed: ${context.formattedValue}`;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        })();
+    </script>
+}
+

@@ -1,0 +1,163 @@
+@page
+@model PropertyInventory.Pages.Mobile.ScanResultModel
+@{
+    ViewData["Title"] = "Property Scan Result";
+}
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="bi bi-qr-code-scan"></i> Property Scanned</h5>
+                </div>
+                <div class="card-body">
+                    @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+                    {
+                        <div class="alert alert-success d-flex align-items-center" role="alert">
+                            <i class="bi bi-check-circle me-2"></i>
+                            <div>@Model.SuccessMessage</div>
+                        </div>
+                    }
+
+                    @if (!string.IsNullOrEmpty(Model.ErrorMessage))
+                    {
+                        <div class="alert alert-warning d-flex align-items-center" role="alert">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <div>@Model.ErrorMessage</div>
+                        </div>
+                    }
+
+                    @if (Model.Property != null)
+                    {
+                        <div class="mb-4">
+                            <h6 class="text-muted mb-3">Property Information</h6>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Property Code:</strong></div>
+                                <div class="col-8">@Model.Property.PropertyCode</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Property Name:</strong></div>
+                                <div class="col-8">@Model.Property.PropertyName</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Category:</strong></div>
+                                <div class="col-8">@Model.Property.Category</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Location:</strong></div>
+                                <div class="col-8">@Model.Property.Location</div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Status:</strong></div>
+                                <div class="col-8">
+                                    <span class="badge bg-@GetStatusColor(Model.Property.Status)">
+                                        @Model.Property.Status
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Borrower:</strong></div>
+                                <div class="col-8">
+                                    @if (!string.IsNullOrEmpty(Model.Property.BorrowerName))
+                                    {
+                                        <span class="fw-semibold">@Model.Property.BorrowerName</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Not borrowed</span>
+                                    }
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Borrowed Date:</strong></div>
+                                <div class="col-8">
+                                    @(Model.Property.BorrowedDate?.ToLocalTime().ToString("MM/dd/yyyy hh:mm tt") ?? "N/A")
+                                </div>
+                            </div>
+                            <div class="row mb-2">
+                                <div class="col-4"><strong>Return Date:</strong></div>
+                                <div class="col-8">
+                                    @(Model.Property.ReturnDate?.ToLocalTime().ToString("MM/dd/yyyy hh:mm tt") ?? "N/A")
+                                </div>
+                            </div>
+                            @if (Model.QuantityBreakdown != null && Model.QuantityBreakdown.Count > 0)
+                            {
+                                <div class="alert alert-info mt-3 mb-0">
+                                    <h6 class="mb-2"><i class="bi bi-info-circle"></i> Quantity Breakdown (Code: @Model.Property.PropertyCode)</h6>
+                                    <div class="row g-2">
+                                        <div class="col-6">
+                                            <strong>Total:</strong> <span class="badge bg-primary">@Model.QuantityBreakdown["Total"]</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Available:</strong> <span class="badge bg-success">@Model.QuantityBreakdown["Available"]</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Borrowed:</strong> <span class="badge bg-warning">@Model.QuantityBreakdown["InUse"]</span>
+                                        </div>
+                                        <div class="col-6">
+                                            <strong>Damaged:</strong> <span class="badge bg-danger">@Model.QuantityBreakdown["Damaged"]</span>
+                                        </div>
+                                        @if (Model.QuantityBreakdown["UnderMaintenance"] > 0)
+                                        {
+                                            <div class="col-6">
+                                                <strong>Under Maintenance:</strong> <span class="badge bg-info">@Model.QuantityBreakdown["UnderMaintenance"]</span>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        <hr />
+                        <div class="d-grid gap-2">
+                            <a asp-page="/Mobile/EditProperty" asp-route-id="@Model.Property.Id" class="btn btn-primary btn-lg">
+                                <i class="bi bi-pencil"></i> Update Property
+                            </a>
+                            @if (Model.Property.Status == PropertyStatus.InUse)
+                            {
+                                <form method="post" asp-page-handler="Return" class="d-grid gap-2">
+                                    <input type="hidden" name="propertyId" value="@Model.Property.Id" />
+                                    <button type="submit" class="btn btn-outline-danger btn-lg">
+                                        <i class="bi bi-arrow-counterclockwise"></i> Return Property
+                                    </button>
+                                </form>
+                            }
+                            else
+                            {
+                                <a asp-page="/Mobile/Borrow" asp-route-id="@Model.Property.Id" class="btn btn-success btn-lg">
+                                    <i class="bi bi-handbag"></i> Borrow Property
+                                </a>
+                            }
+                            <a asp-page="/Mobile/Dashboard" class="btn btn-secondary">
+                                <i class="bi bi-arrow-left"></i> Back to Scanner
+                            </a>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="alert alert-danger">
+                            <i class="bi bi-exclamation-circle"></i> Property not found.
+                        </div>
+                        <a asp-page="/Mobile/Dashboard" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Scanner
+                        </a>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@functions {
+    private string GetStatusColor(PropertyStatus status)
+    {
+        return status switch
+        {
+            PropertyStatus.Available => "success",
+            PropertyStatus.InUse => "primary",
+            PropertyStatus.UnderMaintenance => "warning",
+            PropertyStatus.Damaged => "danger",
+            _ => "secondary"
+        };
+    }
+}

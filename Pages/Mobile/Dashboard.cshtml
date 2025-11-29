@@ -1,0 +1,853 @@
+@page
+@model PropertyInventory.Pages.Mobile.DashboardModel
+@using PropertyInventory.Models
+@{
+    ViewData["Title"] = "Mobile Dashboard";
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Property Inventory</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <style>
+        body {
+            background-color: #f5f5f5;
+            padding-bottom: 80px;
+        }
+        .scanner-container {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        #video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 10px;
+            display: none;
+        }
+        #canvas {
+            display: none;
+        }
+        .scan-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 18px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .property-info {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            margin: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .navbar-mobile {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: white;
+            border-top: 1px solid #ddd;
+            padding: 10px;
+            z-index: 1000;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .navbar-mobile .btn-link {
+            text-decoration: none;
+            color: #333;
+            padding: 10px;
+            border-radius: 8px;
+            transition: background-color 0.3s;
+        }
+        .navbar-mobile .btn-link:hover {
+            background-color: #f0f0f0;
+        }
+        .navbar-mobile .btn-link.active {
+            background-color: #006400;
+            color: white;
+        }
+        .tab-content {
+            min-height: 400px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-primary">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1">Property Scanner</span>
+            <form method="post" asp-page-handler="Logout" style="display: inline;">
+                <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+            </form>
+        </div>
+    </nav>
+
+    <div class="container-fluid mt-3">
+        <!-- Tabs Navigation -->
+        <ul class="nav nav-tabs mb-3" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="scan-tab" data-bs-toggle="tab" data-bs-target="#scan" type="button" role="tab">
+                    <i class="bi bi-qr-code-scan"></i> Scan QR
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="history-tab" data-bs-toggle="tab" data-bs-target="#history" type="button" role="tab">
+                    <i class="bi bi-clock-history"></i> Edit History
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="borrowing-tab" data-bs-toggle="tab" data-bs-target="#borrowing" type="button" role="tab">
+                    <i class="bi bi-handbag"></i> Borrowing History
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab">
+                    <i class="bi bi-person"></i> Profile
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="dashboardTabsContent">
+            <!-- Scan Tab -->
+            <div class="tab-pane fade show active" id="scan" role="tabpanel">
+                <div class="scanner-container">
+                    <h5 class="mb-3">Scan QR Code</h5>
+                    <div class="alert alert-warning mb-3">
+                        <i class="bi bi-exclamation-triangle"></i> 
+                        <strong>Important - Camera Access:</strong> 
+                        <br>Camera requires HTTPS connection. Make sure you're accessing this page using <strong>https://</strong> (not http://).
+                        <br><strong>HTTPS URL:</strong> <code id="httpsUrl">https://[your-ip]:5001</code>
+                        <br><br>
+                        <strong>⚠️ "Connection is not private" Warning:</strong>
+                        <br>Kung may warning na "Your connection is not private" o "NET::ERR_CERT_AUTHORITY_INVALID":
+                        <ol class="mb-2 mt-2">
+                            <li>I-click ang <strong>"Advanced"</strong> o <strong>"Advanced settings"</strong></li>
+                            <li>I-click ang <strong>"Proceed to [site] (unsafe)"</strong> o <strong>"Continue anyway"</strong></li>
+                            <li>Normal lang ito para sa development server - safe naman ito</li>
+                        </ol>
+                        <br><small class="text-muted mt-1 d-block">
+                            Click "Start Scanner" to begin. Your browser will ask for camera permission - please click "Allow" to enable QR code scanning.
+                        </small>
+                    </div>
+                    <div id="reader" style="min-height: 300px; width: 100%;"></div>
+                    <video id="video" autoplay playsinline style="display: none;"></video>
+                    <canvas id="canvas" style="display: none;"></canvas>
+                    <button id="startScan" class="btn btn-primary scan-button">
+                        <i class="bi bi-camera"></i> Start Scanner
+                    </button>
+                    <button id="stopScan" class="btn btn-danger scan-button" style="display: none;">
+                        <i class="bi bi-stop-circle"></i> Stop Scanner
+                    </button>
+                    <div id="cameraStatus" class="mt-2 text-muted small"></div>
+                </div>
+
+                <div id="propertyInfo" class="property-info" style="display: none;">
+                    <h5>Property Information</h5>
+                    <hr>
+                    <p><strong>Property Code:</strong> <span id="propertyCode"></span></p>
+                    <p><strong>Property Name:</strong> <span id="propertyName"></span></p>
+                    <p><strong>Category:</strong> <span id="propertyCategory"></span></p>
+                    <p><strong>Location:</strong> <span id="propertyLocation"></span></p>
+                    <p><strong>Status:</strong> <span id="propertyStatus"></span></p>
+                    <div id="borrowingInfo" style="display: none;">
+                        <p><strong>Borrower:</strong> <span id="borrowerName"></span></p>
+                        <p><strong>Return Date:</strong> <span id="returnDate"></span></p>
+                    </div>
+                    <div class="d-grid gap-2 mt-3">
+                        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#updateModal">
+                            <i class="bi bi-pencil"></i> Update
+                        </button>
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#borrowingModal">
+                            <i class="bi bi-handbag"></i> Borrowing
+                        </button>
+                    </div>
+                </div>
+
+                <div id="errorMessage" class="alert alert-danger" style="display: none; margin: 20px;">
+                    <span id="errorText"></span>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-pane fade" id="history" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0"><i class="bi bi-clock-history"></i> Edit History</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.EditedProperties == null || !Model.EditedProperties.Any())
+                        {
+                            <div class="alert alert-info text-center">
+                                <i class="bi bi-info-circle"></i> No properties edited yet. Scan a QR code and edit a property to see your history here.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Property Code</th>
+                                            <th>Property Name</th>
+                                            <th>Category</th>
+                                            <th>Location</th>
+                                            <th>Status</th>
+                                            <th>Last Updated</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var property in Model.EditedProperties)
+                                        {
+                                            <tr>
+                                                <td><strong>@property.PropertyCode</strong></td>
+                                                <td>@property.PropertyName</td>
+                                                <td>@property.Category</td>
+                                                <td>@property.Location</td>
+                                                <td>
+                                                    <span class="badge bg-@GetStatusColor(property.Status)">
+                                                        @property.Status
+                                                    </span>
+                                                </td>
+                                                <td>@property.LastUpdated.ToString("MM/dd/yyyy HH:mm")</td>
+                                                <td>
+                                                    <a asp-page="/Mobile/EditProperty" asp-route-id="@property.Id" class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-pencil"></i> Edit
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Borrowing History Tab -->
+            <div class="tab-pane fade" id="borrowing" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-warning text-white">
+                        <h5 class="mb-0"><i class="bi bi-handbag"></i> Borrowing History</h5>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.BorrowingHistory == null || !Model.BorrowingHistory.Any())
+                        {
+                            <div class="alert alert-info text-center">
+                                <i class="bi bi-info-circle"></i> No borrowing history found. Borrow a property to see your history here.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-striped table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Property Code</th>
+                                            <th>Property Name</th>
+                                            <th>Tag Number</th>
+                                            <th>Borrower</th>
+                                            <th>Borrowed Date</th>
+                                            <th>Return Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var property in Model.BorrowingHistory)
+                                        {
+                                            var isOverdue = property.ReturnDate.HasValue && property.ReturnDate.Value < DateTime.UtcNow;
+                                            <tr class="@(isOverdue ? "table-danger" : property.Status == PropertyStatus.InUse ? "table-warning" : "")">
+                                                <td><strong>@property.PropertyCode</strong></td>
+                                                <td>@property.PropertyName</td>
+                                                <td>@(property.SerialNumber ?? "N/A")</td>
+                                                <td>@property.BorrowerName</td>
+                                                <td>@(property.BorrowedDate?.ToLocalTime().ToString("MM/dd/yyyy HH:mm") ?? "N/A")</td>
+                                                <td>
+                                                    @if (property.ReturnDate.HasValue)
+                                                    {
+                                                        <span class="@(isOverdue ? "text-danger fw-bold" : "")">
+                                                            @property.ReturnDate.Value.ToLocalTime().ToString("MM/dd/yyyy HH:mm")
+                                                            @if (isOverdue)
+                                                            {
+                                                                <span class="badge bg-danger">Overdue</span>
+                                                            }
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">N/A</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    <span class="badge bg-@GetStatusColor(property.Status)">
+                                                        @property.Status
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <a asp-page="/Mobile/EditProperty" asp-route-id="@property.Id" class="btn btn-sm btn-outline-primary">
+                                                        <i class="bi bi-pencil"></i> View
+                                                    </a>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <!-- Profile Tab -->
+            <div class="tab-pane fade" id="profile" role="tabpanel">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0"><i class="bi bi-person-circle"></i> Profile</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <strong>Full Name:</strong>
+                            </div>
+                            <div class="col-md-8">
+                                @Model.CurrentUser?.FullName
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <strong>Email:</strong>
+                            </div>
+                            <div class="col-md-8">
+                                @Model.CurrentUser?.Email
+                            </div>
+                        </div>
+                        <div class="row mb-3">
+                            <div class="col-md-4">
+                                <strong>Account Created:</strong>
+                            </div>
+                            <div class="col-md-8">
+                                @Model.CurrentUser?.CreatedAt.ToString("MMMM dd, yyyy")
+                            </div>
+                        </div>
+                        <hr />
+                        <div class="d-grid gap-2">
+                            <a asp-page="/Mobile/Profile" class="btn btn-primary">
+                                <i class="bi bi-gear"></i> Manage Profile & Change Password
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update Modal -->
+    <div class="modal fade" id="updateModal" tabindex="-1" aria-labelledby="updateModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="updateModalLabel">Update Property</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="updateForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="updatePropertyId" />
+                        <div class="mb-3">
+                            <label for="updateLocation" class="form-label">Location *</label>
+                            <input type="text" class="form-control" id="updateLocation" required />
+                        </div>
+                        <div class="mb-3">
+                            <label for="updateStatus" class="form-label">Status *</label>
+                            <select class="form-select" id="updateStatus" required>
+                                <option value="Available">Available</option>
+                                <option value="InUse">In Use</option>
+                                <option value="UnderMaintenance">Under Maintenance</option>
+                                <option value="Damaged">Damaged</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="updateRemarks" class="form-label">Remarks</label>
+                            <textarea class="form-control" id="updateRemarks" rows="3"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Borrowing Modal -->
+    <div class="modal fade" id="borrowingModal" tabindex="-1" aria-labelledby="borrowingModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="borrowingModalLabel">Borrow Property</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="borrowingForm">
+                    <div class="modal-body">
+                        <input type="hidden" id="borrowingPropertyId" />
+                        <div class="mb-3">
+                            <label for="borrowerName" class="form-label">Borrower Name *</label>
+                            <input type="text" class="form-control" id="borrowerName" required />
+                        </div>
+                        <div class="mb-3">
+                            <label for="returnDate" class="form-label">Return Date *</label>
+                            <input type="date" class="form-control" id="returnDate" required />
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-success">Save Borrowing</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="navbar-mobile">
+        <div class="d-flex justify-content-around">
+            <button class="btn btn-link" onclick="switchTab('scan-tab')">
+                <div>📷</div>
+                <small>Scan</small>
+            </button>
+            <button class="btn btn-link" onclick="switchTab('history-tab')">
+                <div>📋</div>
+                <small>History</small>
+            </button>
+            <button class="btn btn-link" onclick="switchTab('borrowing-tab')">
+                <div>👜</div>
+                <small>Borrowing</small>
+            </button>
+            <button class="btn btn-link" onclick="switchTab('profile-tab')">
+                <div>👤</div>
+                <small>Profile</small>
+            </button>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    <script>
+        let html5QrCode = null;
+        let scanning = false;
+        
+        // Check if camera is available
+        async function checkCameraAvailability() {
+            // Check if we're on HTTPS or localhost (required for camera access)
+            const isSecure = window.location.protocol === 'https:' || 
+                           window.location.hostname === 'localhost' || 
+                           window.location.hostname === '127.0.0.1';
+            
+            if (!isSecure) {
+                console.warn("Camera requires HTTPS connection");
+                return { available: false, reason: 'https' };
+            }
+            
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                console.warn("Camera API not available");
+                return { available: false, reason: 'api' };
+            }
+            
+            // Try to enumerate devices to check if camera actually exists
+            try {
+                const devices = await navigator.mediaDevices.enumerateDevices();
+                const hasVideoInput = devices.some(device => device.kind === 'videoinput');
+                if (!hasVideoInput) {
+                    return { available: false, reason: 'no-device' };
+                }
+                return { available: true };
+            } catch (err) {
+                console.warn("Could not enumerate devices:", err);
+                // If enumeration fails, still allow trying (might work with permission)
+                return { available: true };
+            }
+        }
+
+        function switchTab(tabId) {
+            const tab = document.getElementById(tabId);
+            if (tab) {
+                const tabTrigger = new bootstrap.Tab(tab);
+                tabTrigger.show();
+            }
+        }
+
+        // Wait for DOM to be ready
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM loaded, initializing scanner...");
+            
+            // Display HTTPS URL if on HTTP
+            const httpsUrlElement = document.getElementById('httpsUrl');
+            if (httpsUrlElement && window.location.protocol === 'http:') {
+                const httpsUrl = window.location.href.replace('http://', 'https://').replace(':5000', ':5001');
+                httpsUrlElement.textContent = httpsUrl;
+                httpsUrlElement.style.color = '#d63384';
+                httpsUrlElement.style.fontWeight = 'bold';
+            } else if (httpsUrlElement) {
+                httpsUrlElement.textContent = window.location.href;
+            }
+            
+            // Update active state on tab change
+            document.querySelectorAll('[data-bs-toggle="tab"]').forEach(tab => {
+                tab.addEventListener('shown.bs.tab', function (event) {
+                    // Update mobile navbar active state
+                    document.querySelectorAll('.navbar-mobile .btn-link').forEach(btn => {
+                        btn.classList.remove('active');
+                    });
+                });
+            });
+
+            // Setup button event listeners
+            const startScanBtn = document.getElementById('startScan');
+            const stopScanBtn = document.getElementById('stopScan');
+            
+            if (startScanBtn) {
+                startScanBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log("Start Scan button clicked");
+                    startScanning();
+                });
+            } else {
+                console.error("Start Scan button not found!");
+            }
+            
+            if (stopScanBtn) {
+                stopScanBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log("Stop Scan button clicked");
+                    stopScanning();
+                });
+            }
+            
+            // Check camera availability on load
+            checkCameraAvailability().then(result => {
+                if (!result.available) {
+                const statusDiv = document.getElementById('cameraStatus');
+                if (statusDiv) {
+                        if (result.reason === 'https') {
+                            statusDiv.textContent = '⚠️ Camera requires HTTPS connection. Please use https:// to access this page.';
+                        } else if (result.reason === 'api') {
+                            statusDiv.textContent = '⚠️ Camera API not supported in this browser.';
+                        } else if (result.reason === 'no-device') {
+                            statusDiv.textContent = '⚠️ No camera found on this device.';
+                        } else {
+                            statusDiv.textContent = '⚠️ Camera may not be available.';
+                        }
+                    statusDiv.className = 'mt-2 text-warning small';
+                }
+            }
+            });
+        });
+
+        async function startScanning() {
+            if (scanning) return;
+            
+            // Check camera availability
+            const cameraCheck = await checkCameraAvailability();
+            if (!cameraCheck.available) {
+                const statusDiv = document.getElementById('cameraStatus');
+                let errorMessage = '';
+                if (cameraCheck.reason === 'https') {
+                    statusDiv.textContent = '⚠️ Camera requires HTTPS connection.';
+                    statusDiv.className = 'mt-2 text-danger small';
+                    errorMessage = "Camera access requires a secure HTTPS connection.\n\nPlease access this page using https:// instead of http://";
+                } else if (cameraCheck.reason === 'api') {
+                    statusDiv.textContent = '⚠️ Camera API not supported in this browser.';
+                    statusDiv.className = 'mt-2 text-warning small';
+                    errorMessage = "Camera API is not supported in this browser. Please use a modern browser like Chrome, Firefox, or Safari.";
+                } else if (cameraCheck.reason === 'no-device') {
+                    statusDiv.textContent = '⚠️ No camera found on this device.';
+                    statusDiv.className = 'mt-2 text-warning small';
+                    errorMessage = "No camera found on this device. Please use a device with a camera.";
+                } else {
+                    statusDiv.textContent = '⚠️ Camera may not be available.';
+                statusDiv.className = 'mt-2 text-warning small';
+                    errorMessage = "Camera may not be available on this device.";
+                }
+                if (errorMessage) {
+                    alert(errorMessage);
+                }
+                return;
+            }
+            
+            scanning = true;
+            const statusDiv = document.getElementById('cameraStatus');
+            statusDiv.textContent = 'Requesting camera permission...';
+            statusDiv.className = 'mt-2 text-info small';
+            
+            document.getElementById('startScan').style.display = 'none';
+            document.getElementById('stopScan').style.display = 'block';
+            document.getElementById('propertyInfo').style.display = 'none';
+            document.getElementById('errorMessage').style.display = 'none';
+
+            // Clear previous scanner instance if exists
+            if (html5QrCode) {
+                try {
+                    html5QrCode.stop().catch(() => {});
+                    html5QrCode.clear();
+                } catch (e) {
+                    console.log("Clearing previous scanner instance:", e);
+                }
+                html5QrCode = null;
+            }
+
+            const readerDiv = document.getElementById("reader");
+            if (!readerDiv) {
+                console.error("Reader div not found!");
+                alert("Scanner container not found. Please refresh the page.");
+                scanning = false;
+                if (startScanBtn) startScanBtn.style.display = 'block';
+                if (stopScanBtn) stopScanBtn.style.display = 'none';
+                return;
+            }
+
+            console.log("Creating Html5Qrcode instance...");
+            html5QrCode = new Html5Qrcode("reader");
+            
+            // Configuration for QR scanner
+            const config = {
+                fps: 10,
+                qrbox: function(viewfinderWidth, viewfinderHeight) {
+                    // Use 80% of the smaller dimension for better mobile experience
+                    let minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+                    let qrboxSize = Math.floor(minEdge * 0.8);
+                    return {
+                        width: qrboxSize,
+                        height: qrboxSize
+                    };
+                },
+                aspectRatio: 1.0,
+                supportedScanTypes: [Html5QrcodeScanType.SCAN_TYPE_CAMERA]
+            };
+            
+            // Start scanning - this will trigger the browser's permission request
+            // The html5-qrcode library will handle the permission request automatically
+            try {
+                if (statusDiv) {
+                    statusDiv.textContent = 'Starting camera...';
+                }
+                
+                console.log("Calling html5QrCode.start()...");
+                
+                await html5QrCode.start(
+                    { facingMode: "environment" }, // Prefer back camera (for QR scanning)
+                    config,
+                    (decodedText, decodedResult) => {
+                        console.log('QR Code scanned:', decodedText);
+                        handleScanResult(decodedText);
+                    },
+                    (errorMessage) => {
+                        // Ignore scanning errors (continuous scanning)
+                        // Only log if it's not a common scanning error
+                        if (!errorMessage.includes('NotFoundException') && 
+                            !errorMessage.includes('No QR code found') &&
+                            !errorMessage.includes('QR code parse error')) {
+                            // Only log non-common errors
+                        }
+                    }
+                );
+                
+                // Success - camera started
+                console.log("Camera started successfully!");
+                if (statusDiv) {
+                    statusDiv.textContent = '✓ Camera active. Point at QR code to scan.';
+                    statusDiv.className = 'mt-2 text-success small';
+                }
+                
+            } catch (err) {
+                console.error("Unable to start scanning with back camera:", err);
+                scanning = false;
+                
+                // Handle permission errors
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError' || 
+                    (err.message && (err.message.includes('Permission') || err.message.includes('permission')))) {
+                    console.error("Camera permission denied:", err);
+                    if (statusDiv) {
+                        statusDiv.textContent = '✗ Camera permission denied. Please allow camera access.';
+                        statusDiv.className = 'mt-2 text-danger small';
+                    }
+                    alert("Camera permission is required to scan QR codes.\n\nPlease:\n1. Click 'Allow' when your browser asks for camera permission\n2. Or go to your browser settings and allow camera access for this site\n3. Then try again.");
+                    if (startScanBtn) startScanBtn.style.display = 'block';
+                    if (stopScanBtn) stopScanBtn.style.display = 'none';
+                    scanning = false;
+                    return;
+                }
+                
+                // Try front camera as fallback
+                if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError' || 
+                    (err.message && (err.message.includes('NotFound') || err.message.includes('not found')))) {
+                    console.log("Back camera not found, trying front camera...");
+                    if (statusDiv) {
+                        statusDiv.textContent = 'No back camera found, trying front camera...';
+                        statusDiv.className = 'mt-2 text-info small';
+                    }
+                    
+                    try {
+                        await html5QrCode.start(
+                            { facingMode: "user" }, // Try front camera
+                            config,
+                            (decodedText, decodedResult) => {
+                                console.log('QR Code scanned:', decodedText);
+                                handleScanResult(decodedText);
+                            },
+                            (errorMessage) => {
+                                // Ignore scanning errors
+                            }
+                        );
+                        
+                        if (statusDiv) {
+                            statusDiv.textContent = '✓ Camera active. Point at QR code to scan.';
+                            statusDiv.className = 'mt-2 text-success small';
+                        }
+                        scanning = true;
+                        console.log("Front camera started successfully!");
+                        
+                    } catch (err2) {
+                        console.error("Unable to start scanning with any camera:", err2);
+                        if (statusDiv) {
+                            statusDiv.textContent = '✗ Unable to start camera. Please check permissions.';
+                            statusDiv.className = 'mt-2 text-danger small';
+                        }
+                        
+                        let errorMsg = "Unable to start camera scanner.\n\n";
+                        if (err2.name === 'NotAllowedError' || err2.name === 'PermissionDeniedError') {
+                            errorMsg += "Please allow camera access in your browser settings and try again.";
+                        } else if (err2.name === 'NotFoundError' || err2.name === 'DevicesNotFoundError') {
+                            errorMsg += "No camera found on this device.";
+                        } else {
+                            errorMsg += "Error: " + (err2.message || err2.toString());
+                        }
+                        
+                        alert(errorMsg);
+                        if (startScanBtn) startScanBtn.style.display = 'block';
+                        if (stopScanBtn) stopScanBtn.style.display = 'none';
+                        scanning = false;
+                    }
+                } else {
+                    // Other errors
+                    console.error("Error starting camera:", err);
+                    if (statusDiv) {
+                        statusDiv.textContent = '✗ Error starting camera: ' + (err.message || err.toString());
+                        statusDiv.className = 'mt-2 text-danger small';
+                    }
+                    alert("Unable to start camera: " + (err.message || err.toString()) + "\n\nPlease check your browser settings and allow camera access.");
+                    if (startScanBtn) startScanBtn.style.display = 'block';
+                    if (stopScanBtn) stopScanBtn.style.display = 'none';
+                    scanning = false;
+                }
+            }
+        }
+
+        function stopScanning() {
+            if (!scanning && !html5QrCode) return;
+            
+            scanning = false;
+            const statusDiv = document.getElementById('cameraStatus');
+            
+            if (html5QrCode) {
+                html5QrCode.stop().then(() => {
+                    html5QrCode.clear();
+                    html5QrCode = null;
+                    statusDiv.textContent = 'Camera stopped.';
+                    statusDiv.className = 'mt-2 text-muted small';
+                }).catch((err) => {
+                    console.error("Error stopping scanner", err);
+                    // Try to clear anyway
+                    try {
+                        if (html5QrCode) {
+                            html5QrCode.clear();
+                        }
+                    } catch (e) {
+                        console.error("Error clearing scanner", e);
+                    }
+                    html5QrCode = null;
+                    statusDiv.textContent = 'Camera stopped.';
+                    statusDiv.className = 'mt-2 text-muted small';
+                });
+            }
+            
+            document.getElementById('startScan').style.display = 'block';
+            document.getElementById('stopScan').style.display = 'none';
+        }
+        
+        // Additional check on window load
+        window.addEventListener('load', function() {
+            console.log("Window loaded, checking camera availability...");
+            checkCameraAvailability().then(result => {
+                if (!result.available) {
+                const statusDiv = document.getElementById('cameraStatus');
+                    if (statusDiv && !statusDiv.textContent) { // Only update if not already set
+                        if (result.reason === 'https') {
+                            statusDiv.textContent = '⚠️ Camera requires HTTPS connection.';
+                        } else if (result.reason === 'api') {
+                            statusDiv.textContent = '⚠️ Camera API not supported in this browser.';
+                        } else if (result.reason === 'no-device') {
+                            statusDiv.textContent = '⚠️ No camera found on this device.';
+                        } else {
+                            statusDiv.textContent = '⚠️ Camera may not be available.';
+                        }
+                    statusDiv.className = 'mt-2 text-warning small';
+                }
+            }
+            });
+        });
+
+        function handleScanResult(propertyCode) {
+            // Stop scanning immediately when QR code is detected
+            stopScanning();
+            
+            // Extract property code from QR (format: PROP-001 or just the code)
+            let code = propertyCode.trim();
+            
+            // Remove any URL or protocol if present
+            if (code.includes('://')) {
+                const url = new URL(code);
+                code = url.pathname.split('/').pop() || code;
+            }
+            
+            // Remove any query parameters
+            if (code.includes('?')) {
+                code = code.split('?')[0];
+            }
+            
+            console.log('Scanned QR code:', code);
+            
+            // Redirect to ScanResult page
+            window.location.href = `/Mobile/ScanResult?propertyCode=${encodeURIComponent(code)}`;
+        }
+
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('propertyInfo').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
+
+@functions {
+    private string GetStatusColor(PropertyStatus status)
+    {
+        return status switch
+        {
+            PropertyStatus.Available => "success",
+            PropertyStatus.InUse => "primary",
+            PropertyStatus.UnderMaintenance => "warning",
+            PropertyStatus.Damaged => "danger",
+            _ => "secondary"
+        };
+    }
+}
