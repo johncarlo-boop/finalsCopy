@@ -192,7 +192,7 @@ FodyWeavers.xsd
 *.msp
 
 # Firebase credentials and sensitive configuration
-# firebase-credentials.json  # Temporarily uncommented for Render deployment testing
+firebase-credentials.json
 appsettings.json
 appsettings.Development.json
 
