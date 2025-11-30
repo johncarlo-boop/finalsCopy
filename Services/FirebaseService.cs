@@ -61,40 +61,54 @@ public class FirebaseService
             GoogleCredential? credential = null;
             
             // Initialize Firebase Admin if not already initialized
-            if (FirebaseApp.DefaultInstance == null)
+            try
             {
-                // Try to load from file
-                if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
+                // Check if FirebaseApp already exists
+                var existingApp = FirebaseApp.DefaultInstance;
+                if (existingApp != null)
                 {
-                    _logger.LogInformation("Loading Firebase credentials from file: {CredentialsPath}", credentialsPath);
-                    credential = GoogleCredential.FromFile(credentialsPath)
-                        .CreateScoped("https://www.googleapis.com/auth/cloud-platform", 
-                                     "https://www.googleapis.com/auth/datastore");
-                    
-                    // Set environment variable so FirestoreDb.Create can use it
-                    Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath);
-                    
-                    FirebaseApp.Create(new FirebaseAdmin.AppOptions()
-                    {
-                        Credential = credential,
-                        ProjectId = projectId
-                    });
-                    _logger.LogInformation("Firebase Admin initialized successfully with credentials file");
-                }
-                else if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS")))
-                {
-                    _logger.LogInformation("Using GOOGLE_APPLICATION_CREDENTIALS environment variable");
-                    FirebaseApp.Create(new FirebaseAdmin.AppOptions()
-                    {
-                        ProjectId = projectId
-                    });
+                    _logger.LogInformation("Firebase Admin already initialized, reusing existing instance");
                 }
                 else
                 {
-                    var errorMsg = $"Firebase credentials not found. Please set FIREBASE_CREDENTIALS_BASE64 environment variable or ensure firebase-credentials.json exists at: {credentialsPath}";
-                    _logger.LogError(errorMsg);
-                    throw new FileNotFoundException(errorMsg);
+                    // Try to load from file
+                    if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
+                    {
+                        _logger.LogInformation("Loading Firebase credentials from file: {CredentialsPath}", credentialsPath);
+                        credential = GoogleCredential.FromFile(credentialsPath)
+                            .CreateScoped("https://www.googleapis.com/auth/cloud-platform", 
+                                         "https://www.googleapis.com/auth/datastore");
+                        
+                        // Set environment variable so FirestoreDb.Create can use it
+                        Environment.SetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS", credentialsPath);
+                        
+                        FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+                        {
+                            Credential = credential,
+                            ProjectId = projectId
+                        });
+                        _logger.LogInformation("Firebase Admin initialized successfully with credentials file");
+                    }
+                    else if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("GOOGLE_APPLICATION_CREDENTIALS")))
+                    {
+                        _logger.LogInformation("Using GOOGLE_APPLICATION_CREDENTIALS environment variable");
+                        FirebaseApp.Create(new FirebaseAdmin.AppOptions()
+                        {
+                            ProjectId = projectId
+                        });
+                    }
+                    else
+                    {
+                        var errorMsg = $"Firebase credentials not found. Please set FIREBASE_CREDENTIALS_BASE64 environment variable or ensure firebase-credentials.json exists at: {credentialsPath}";
+                        _logger.LogError(errorMsg);
+                        throw new FileNotFoundException(errorMsg);
+                    }
                 }
+            }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("already exists"))
+            {
+                // FirebaseApp already exists, which is fine - just reuse it
+                _logger.LogInformation("Firebase Admin already initialized by another instance, reusing existing app");
             }
             
             // Create FirestoreDb with explicit credentials if available
