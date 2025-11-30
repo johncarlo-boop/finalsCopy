@@ -334,9 +334,14 @@ public class EmailService
 
             if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
-                _logger.LogWarning("Email settings not configured. Cannot send account request confirmation email.");
+                _logger.LogError("❌❌❌ EMAIL SETTINGS NOT CONFIGURED! SmtpUsername: {HasUsername}, SmtpPassword: {HasPassword}", 
+                    !string.IsNullOrEmpty(smtpUsername), !string.IsNullOrEmpty(smtpPassword));
+                _logger.LogError("Cannot send account request confirmation email to {Email}. CHECK RENDER ENVIRONMENT VARIABLES!", toEmail);
                 return false;
             }
+            
+            _logger.LogInformation("✅ Email settings configured. Server: {Server}, Port: {Port}, Username: {Username}", 
+                smtpServer, smtpPort, smtpUsername);
 
             // Build login URL for reference (will be used after approval)
             // Always use Render URL for mobile users
@@ -805,8 +810,15 @@ public class EmailService
             {
                 try
                 {
-                    _logger.LogInformation("Attempting to send {EmailType} email to {Email} via {Server}:{Port} (attempt {Attempt}/{MaxRetries})", 
+                    _logger.LogInformation("📧 Attempting to send {EmailType} email to {Email} via {Server}:{Port} (attempt {Attempt}/{MaxRetries})", 
                         emailType, toEmail, smtpServer, port, attempt, maxRetries);
+                    
+                    // Validate credentials before attempting
+                    if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
+                    {
+                        _logger.LogError("❌ Invalid credentials for {EmailType} email - Username or Password is empty!", emailType);
+                        continue; // Try next port
+                    }
                     
                     using var smtpClient = new SmtpClient(smtpServer, port);
                     smtpClient.EnableSsl = true;
@@ -817,12 +829,13 @@ public class EmailService
                     if (attempt > 1)
                     {
                         var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)); // 2s, 4s, 8s
-                        _logger.LogInformation("Waiting {Delay} seconds before retry...", delay.TotalSeconds);
+                        _logger.LogInformation("⏳ Waiting {Delay} seconds before retry...", delay.TotalSeconds);
                         await Task.Delay(delay);
                     }
                     
+                    _logger.LogInformation("🔄 Connecting to SMTP server {Server}:{Port}...", smtpServer, port);
                     await smtpClient.SendMailAsync(mailMessage);
-                    _logger.LogInformation("✓ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
+                    _logger.LogInformation("✅✅✅ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
                         emailType, toEmail, smtpServer, port);
                     return true;
                 }

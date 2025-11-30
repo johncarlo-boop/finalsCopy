@@ -78,76 +78,50 @@ public class RequestAccountModel : PageModel
 
         try
         {
-            // Try to create request with VERY SHORT timeout (1 second max) - if slow, return success anyway
-            string requestId = string.Empty;
-            bool createCompleted = false;
-            
-            try
-            {
-                using var createCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-                requestId = await _firebaseService.CreateAccountRequestAsync(request)
-                    .WaitAsync(createCts.Token);
-                request.Id = requestId;
-                createCompleted = true;
-                _logger.LogInformation("Account request created successfully: {RequestId} for {Email}", requestId, Input.Email);
-            }
-            catch (OperationCanceledException)
-            {
-                // If create times out (after 1 second), still return success immediately
-                _logger.LogInformation("CreateAccountRequestAsync timed out for {Email} - will complete in background", Input.Email);
-                requestId = $"pending-{Guid.NewGuid():N}";
-            }
-            catch (Exception createEx)
-            {
-                // If create fails, still return success and retry in background
-                _logger.LogInformation(createEx, "CreateAccountRequestAsync failed for {Email} - will retry in background", Input.Email);
-                requestId = $"failed-{Guid.NewGuid():N}";
-            }
-            
-            // Return success IMMEDIATELY - don't wait for anything (response in < 1 second)
+            // Return success IMMEDIATELY - don't wait for anything (TRULY INSTANT)
             SuccessMessage = "Your account request has been submitted successfully. An admin will review your request and you will be notified once approved.";
             
             // Capture variables before background task (for closure)
             var email = Input.Email;
             var fullName = Input.FullName;
             var position = Input.Position;
-            var requestCopy = request; // Copy for background task
             
-            // Start background tasks IMMEDIATELY (fire-and-forget)
+            // Start ALL operations in background IMMEDIATELY (fire-and-forget)
+            // This ensures instant response - everything happens in background
             _ = Task.Run(async () =>
             {
+                string requestId = string.Empty;
+                bool createCompleted = false;
+                
                 try
                 {
-                    _logger.LogInformation("Starting background tasks for request {RequestId}", requestId);
+                    _logger.LogInformation("🚀 Starting background tasks for {Email}", email);
                     
-                    // If create didn't complete, retry it in background
-                    if (!createCompleted)
+                    // Create account request in background
+                    try
                     {
-                        try
+                        _logger.LogInformation("Creating account request for {Email} in background", email);
+                        var backgroundRequest = new AccountRequest
                         {
-                            _logger.LogInformation("Retrying account request creation for {Email} in background", email);
-                            var retryRequest = new AccountRequest
-                            {
-                                Email = email,
-                                FullName = fullName,
-                                Position = position,
-                                Status = AccountRequestStatus.Pending,
-                                RequestedAt = DateTime.UtcNow
-                            };
-                            
-                            using var retryCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                            var retryRequestId = await _firebaseService.CreateAccountRequestAsync(retryRequest)
-                                .WaitAsync(retryCts.Token);
-                            requestId = retryRequestId;
-                            requestCopy.Id = retryRequestId;
-                            createCompleted = true;
-                            _logger.LogInformation("✓ Account request created successfully in background: {RequestId}", requestId);
-                        }
-                        catch (Exception retryEx)
-                        {
-                            _logger.LogError(retryEx, "✗ Failed to create account request in background for {Email}", email);
-                            // Continue anyway - try to send email
-                        }
+                            Email = email,
+                            FullName = fullName,
+                            Position = position,
+                            Status = AccountRequestStatus.Pending,
+                            RequestedAt = DateTime.UtcNow
+                        };
+                        
+                        using var createCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                        requestId = await _firebaseService.CreateAccountRequestAsync(backgroundRequest)
+                            .WaitAsync(createCts.Token);
+                        backgroundRequest.Id = requestId;
+                        createCompleted = true;
+                        _logger.LogInformation("✓ Account request created successfully in background: {RequestId}", requestId);
+                    }
+                    catch (Exception createEx)
+                    {
+                        _logger.LogError(createEx, "✗ Failed to create account request in background for {Email}: {Error}", email, createEx.Message);
+                        requestId = $"failed-{Guid.NewGuid():N}";
+                        // Continue anyway - try to send email
                     }
                     
                     // Send SignalR notification (non-blocking)
@@ -158,10 +132,10 @@ public class RequestAccountModel : PageModel
                             await _hubContext.Clients.All.SendAsync("AccountRequestCreated", new
                             {
                                 requestId,
-                                requestCopy.FullName,
-                                requestCopy.Email,
-                                requestCopy.Position,
-                                requestCopy.RequestedAt
+                                fullName,
+                                email,
+                                position,
+                                requestedAt = DateTime.UtcNow
                             });
                             _logger.LogInformation("SignalR notification sent for request {RequestId}", requestId);
                         }
