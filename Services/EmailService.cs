@@ -165,6 +165,8 @@ public class EmailService
 
     public async Task<bool> SendAccountApprovalEmailAsync(string toEmail, string? temporaryPassword, string fullName, string? loginUrl = null)
     {
+        _logger.LogInformation("🔵 SendAccountApprovalEmailAsync CALLED for {Email}, FullName: {FullName}", toEmail, fullName);
+        
         try
         {
             var smtpServer = _configuration["EmailSettings:SmtpServer"] ?? "smtp.gmail.com";
@@ -175,9 +177,13 @@ public class EmailService
             var fromName = _configuration["EmailSettings:FromName"] ?? "Property Inventory System";
             var baseUrl = _configuration["AppSettings:BaseUrl"];
 
+            _logger.LogInformation("🔵 Email config loaded - Server: {Server}, Port: {Port}, Username: {HasUsername}, Password: {HasPassword}", 
+                smtpServer, smtpPort, !string.IsNullOrEmpty(smtpUsername), !string.IsNullOrEmpty(smtpPassword));
+
             if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
-                _logger.LogWarning("Email settings not configured. Temporary Password: {Password}", temporaryPassword);
+                _logger.LogError("❌❌❌ EMAIL SETTINGS NOT CONFIGURED! Cannot send account approval email.");
+                _logger.LogError("Environment variables should be: EmailSettings__SmtpUsername and EmailSettings__SmtpPassword");
                 return false;
             }
 
