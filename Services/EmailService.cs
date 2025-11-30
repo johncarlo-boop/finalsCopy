@@ -322,6 +322,8 @@ public class EmailService
 
     public async Task<bool> SendAccountRequestConfirmationEmailAsync(string toEmail, string fullName)
     {
+        _logger.LogInformation("🔵 SendAccountRequestConfirmationEmailAsync CALLED for {Email}, FullName: {FullName}", toEmail, fullName);
+        
         try
         {
             var smtpServer = _configuration["EmailSettings:SmtpServer"] ?? "smtp.gmail.com";
@@ -332,11 +334,15 @@ public class EmailService
             var fromName = _configuration["EmailSettings:FromName"] ?? "Property Inventory System";
             var baseUrl = _configuration["AppSettings:BaseUrl"];
 
+            _logger.LogInformation("🔵 Email config loaded - Server: {Server}, Port: {Port}, Username: {HasUsername}, Password: {HasPassword}", 
+                smtpServer, smtpPort, !string.IsNullOrEmpty(smtpUsername), !string.IsNullOrEmpty(smtpPassword));
+
             if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
                 _logger.LogError("❌❌❌ EMAIL SETTINGS NOT CONFIGURED! SmtpUsername: {HasUsername}, SmtpPassword: {HasPassword}", 
                     !string.IsNullOrEmpty(smtpUsername), !string.IsNullOrEmpty(smtpPassword));
                 _logger.LogError("Cannot send account request confirmation email to {Email}. CHECK RENDER ENVIRONMENT VARIABLES!", toEmail);
+                _logger.LogError("Environment variables should be: EmailSettings__SmtpUsername and EmailSettings__SmtpPassword");
                 return false;
             }
             
