@@ -336,11 +336,23 @@ public class EmailService
             var smtpPassword = _configuration["EmailSettings:SmtpPassword"];
             var fromEmail = _configuration["EmailSettings:FromEmail"] ?? smtpUsername;
             var fromName = _configuration["EmailSettings:FromName"] ?? "Property Inventory System";
+            var baseUrl = _configuration["AppSettings:BaseUrl"];
 
             if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
                 _logger.LogWarning("Email settings not configured. Cannot send account request confirmation email.");
                 return false;
+            }
+
+            // Build login URL for reference (will be used after approval)
+            string loginUrl = "";
+            if (!string.IsNullOrEmpty(baseUrl))
+            {
+                loginUrl = $"{baseUrl.TrimEnd('/')}/Account/MobileLogin";
+            }
+            else
+            {
+                loginUrl = "https://finalscopy-pdiw.onrender.com/Account/MobileLogin";
             }
 
             using var mailMessage = new MailMessage();
@@ -386,7 +398,15 @@ public class EmailService
                 <li>An administrator will review your request</li>
                 <li>You will receive an email notification with the decision</li>
                 <li>If approved, you will receive login credentials via email</li>
+                <li>You will be able to access the system at: <a href=""{loginUrl}"" style=""color: #006400;"">{loginUrl}</a></li>
             </ul>
+            
+            <p><strong>System Access:</strong></p>
+            <p>Once your account is approved, you can access the Property Inventory Management System at:</p>
+            <div style=""text-align: center; margin: 20px 0;"">
+                <a href=""{loginUrl}"" style=""display: inline-block; background-color: #006400; color: white !important; padding: 12px 24px; text-decoration: none !important; border-radius: 5px; font-weight: bold;"">Access System</a>
+            </div>
+            <p style=""text-align: center; color: #666; font-size: 14px;"">(Link will be active after account approval)</p>
             
             <p>If you have any questions, please contact the administrator.</p>
         </div>
