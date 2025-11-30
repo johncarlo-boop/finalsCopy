@@ -55,7 +55,7 @@ public class RequestAccountModel : PageModel
     {
     }
 
-    public async Task<IActionResult> OnPostAsync()
+    public IActionResult OnPost()
     {
         if (!ModelState.IsValid)
         {
