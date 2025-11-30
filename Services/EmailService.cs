@@ -346,12 +346,21 @@ public class EmailService
 
             // Build login URL for reference (will be used after approval)
             string loginUrl = "";
-            if (!string.IsNullOrEmpty(baseUrl))
+            try
             {
-                loginUrl = $"{baseUrl.TrimEnd('/')}/Account/MobileLogin";
+                if (!string.IsNullOrEmpty(baseUrl))
+                {
+                    loginUrl = $"{baseUrl.TrimEnd('/')}/Account/MobileLogin";
+                }
+                else
+                {
+                    // Fallback to Render URL if baseUrl not configured
+                    loginUrl = "https://finalscopy-pdiw.onrender.com/Account/MobileLogin";
+                }
             }
-            else
+            catch (Exception urlEx)
             {
+                _logger.LogWarning(urlEx, "Error building login URL, using fallback");
                 loginUrl = "https://finalscopy-pdiw.onrender.com/Account/MobileLogin";
             }
 

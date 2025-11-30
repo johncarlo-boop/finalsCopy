@@ -91,41 +91,71 @@ public class RequestAccountModel : PageModel
             var requestId = await _firebaseService.CreateAccountRequestAsync(request);
             request.Id = requestId;
             
-            await _hubContext.Clients.All.SendAsync("AccountRequestCreated", new
-            {
-                requestId,
-                request.FullName,
-                request.Email,
-                request.Position,
-                request.RequestedAt
-            });
-            
-            // Send confirmation email to requester
+            // Send SignalR notification (non-blocking, don't fail if this fails)
             try
             {
-                await _emailService.SendAccountRequestConfirmationEmailAsync(Input.Email, Input.FullName);
-                _logger.LogInformation("Account request confirmation email sent to {Email}", Input.Email);
+                await _hubContext.Clients.All.SendAsync("AccountRequestCreated", new
+                {
+                    requestId,
+                    request.FullName,
+                    request.Email,
+                    request.Position,
+                    request.RequestedAt
+                });
+            }
+            catch (Exception hubEx)
+            {
+                _logger.LogWarning(hubEx, "Failed to send SignalR notification, but request was created");
+            }
+            
+            // Send confirmation email to requester (with timeout protection)
+            try
+            {
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+                var emailTask = _emailService.SendAccountRequestConfirmationEmailAsync(Input.Email, Input.FullName);
+                await Task.WhenAny(emailTask, Task.Delay(TimeSpan.FromSeconds(15), cts.Token));
+                
+                if (emailTask.IsCompletedSuccessfully && await emailTask)
+                {
+                    _logger.LogInformation("Account request confirmation email sent to {Email}", Input.Email);
+                }
+                else
+                {
+                    _logger.LogWarning("Email sending timed out or failed for {Email}, but request was created", Input.Email);
+                }
             }
             catch (Exception emailEx)
             {
                 _logger.LogWarning(emailEx, "Failed to send confirmation email to {Email}, but request was created", Input.Email);
             }
             
-            // Send notification email to admins
+            // Send notification email to admins (with timeout protection)
             try
             {
+                // Use timeout to prevent hanging
+                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                 var adminUsers = await _firebaseService.GetAllAdminUsersAsync();
-                var adminEmails = adminUsers.Where(u => !string.IsNullOrWhiteSpace(u.Email)).Select(u => u.Email).ToList();
+                var adminEmails = adminUsers?.Where(u => !string.IsNullOrWhiteSpace(u.Email)).Select(u => u.Email).ToList() ?? new List<string>();
                 
                 if (adminEmails.Any())
                 {
-                    await _emailService.SendNewAccountRequestNotificationToAdminsAsync(
+                    // Send email with timeout
+                    var emailTask = _emailService.SendNewAccountRequestNotificationToAdminsAsync(
                         Input.Email, 
                         Input.FullName, 
                         Input.Position, 
                         adminEmails
                     );
-                    _logger.LogInformation("Account request notification sent to {Count} admin(s)", adminEmails.Count);
+                    await Task.WhenAny(emailTask, Task.Delay(TimeSpan.FromSeconds(20), cts.Token));
+                    
+                    if (emailTask.IsCompletedSuccessfully)
+                    {
+                        _logger.LogInformation("Account request notification sent to {Count} admin(s)", adminEmails.Count);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Email sending timed out or failed, but request was created");
+                    }
                 }
                 else
                 {
