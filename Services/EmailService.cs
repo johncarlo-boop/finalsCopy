@@ -791,7 +791,7 @@ public class EmailService
         }
     }
 
-    // Helper method to send email with retry logic and port fallback
+    // Helper method to send email with simple retry logic (single port only)
     private async Task<bool> SendEmailWithRetryAsync(
         MailMessage mailMessage, 
         string smtpServer, 
@@ -801,88 +801,57 @@ public class EmailService
         string toEmail, 
         string emailType)
     {
-        const int maxRetries = 3;
-        var portsToTry = new[] { smtpPort, 465, 587 }; // Try original port, then 465 (SSL), then 587 (TLS)
+        const int maxRetries = 2; // Only 2 attempts, no port fallback
+        
+        // Validate credentials before attempting
+        if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
+        {
+            _logger.LogError("❌ Invalid credentials for {EmailType} email - Username or Password is empty!", emailType);
+            return false;
+        }
         
         for (int attempt = 1; attempt <= maxRetries; attempt++)
         {
-            foreach (var port in portsToTry)
+            try
             {
-                try
+                _logger.LogInformation("📧 Attempting to send {EmailType} email to {Email} via {Server}:{Port} (attempt {Attempt}/{MaxRetries})", 
+                    emailType, toEmail, smtpServer, smtpPort, attempt, maxRetries);
+                
+                using var smtpClient = new SmtpClient(smtpServer, smtpPort);
+                smtpClient.EnableSsl = true;
+                smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+                smtpClient.Timeout = 10000; // 10 seconds timeout
+                smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
+                
+                // Send email with timeout protection (10 seconds max)
+                using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                await smtpClient.SendMailAsync(mailMessage).WaitAsync(sendCts.Token);
+                
+                _logger.LogInformation("✅✅✅ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
+                    emailType, toEmail, smtpServer, smtpPort);
+                return true;
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogWarning("⏱️ SMTP connection/send timed out after 10 seconds on {Server}:{Port} (attempt {Attempt}/{MaxRetries})", 
+                    smtpServer, smtpPort, attempt, maxRetries);
+                if (attempt < maxRetries)
                 {
-                    _logger.LogInformation("📧 Attempting to send {EmailType} email to {Email} via {Server}:{Port} (attempt {Attempt}/{MaxRetries})", 
-                        emailType, toEmail, smtpServer, port, attempt, maxRetries);
-                    
-                    // Validate credentials before attempting
-                    if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
-                    {
-                        _logger.LogError("❌ Invalid credentials for {EmailType} email - Username or Password is empty!", emailType);
-                        continue; // Try next port
-                    }
-                    
-                    using var smtpClient = new SmtpClient(smtpServer, port);
-                    smtpClient.EnableSsl = true;
-                    smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-                    smtpClient.Timeout = 10000; // 10 seconds timeout (reduced from 30s)
-                    smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
-                    
-                    // Add delay between retries (exponential backoff)
-                    if (attempt > 1)
-                    {
-                        var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)); // 2s, 4s, 8s
-                        _logger.LogInformation("⏳ Waiting {Delay} seconds before retry...", delay.TotalSeconds);
-                        await Task.Delay(delay);
-                    }
-                    
-                    _logger.LogInformation("🔄 Connecting to SMTP server {Server}:{Port}...", smtpServer, port);
-                    
-                    // Send email with timeout protection (10 seconds max)
-                    using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    try
-                    {
-                        await smtpClient.SendMailAsync(mailMessage).WaitAsync(sendCts.Token);
-                        _logger.LogInformation("✅✅✅ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
-                            emailType, toEmail, smtpServer, port);
-                        return true;
-                    }
-                    catch (OperationCanceledException)
-                    {
-                        _logger.LogWarning("⏱️ SMTP connection/send timed out after 10 seconds on {Server}:{Port} (attempt {Attempt}) - trying next port/retry", 
-                            smtpServer, port, attempt);
-                        continue; // Try next port or retry
-                    }
+                    await Task.Delay(TimeSpan.FromSeconds(1)); // Wait 1 second before retry
                 }
-                catch (OperationCanceledException)
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Error sending email via {Server}:{Port} (attempt {Attempt}/{MaxRetries}): {Error}", 
+                    smtpServer, smtpPort, attempt, maxRetries, ex.Message);
+                if (attempt < maxRetries)
                 {
-                    _logger.LogWarning("⏱️ SMTP operation timed out on {Server}:{Port} (attempt {Attempt}) - trying next port/retry", 
-                        smtpServer, port, attempt);
-                    continue; // Try next port or retry
-                }
-                catch (System.Net.Sockets.SocketException socketEx) when (socketEx.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable)
-                {
-                    _logger.LogWarning("Network unreachable error on {Server}:{Port} (attempt {Attempt}) - trying next port/retry", 
-                        smtpServer, port, attempt);
-                    // Try next port or retry
-                    continue;
-                }
-                catch (System.Net.Sockets.SocketException socketEx)
-                {
-                    _logger.LogWarning("Socket error on {Server}:{Port} (attempt {Attempt}): {Error} - trying next port/retry", 
-                        smtpServer, port, attempt, socketEx.Message);
-                    // Try next port or retry
-                    continue;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning("Error sending email via {Server}:{Port} (attempt {Attempt}): {Error} - trying next port/retry", 
-                        smtpServer, port, attempt, ex.Message);
-                    // Try next port or retry
-                    continue;
+                    await Task.Delay(TimeSpan.FromSeconds(1)); // Wait 1 second before retry
                 }
             }
         }
         
-        _logger.LogError("✗ Failed to send {EmailType} email to {Email} after {MaxRetries} attempts on all ports", 
+        _logger.LogError("✗ Failed to send {EmailType} email to {Email} after {MaxRetries} attempts", 
             emailType, toEmail, maxRetries);
         return false;
     }
