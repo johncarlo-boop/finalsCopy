@@ -19,22 +19,7 @@ public class RegisterModel : PageModel
     [BindProperty]
     public InputModel Input { get; set; } = default!;
 
-    [BindProperty]
-    public string? OtpCode { get; set; }
-
     public string? ReturnUrl { get; set; }
-
-    [TempData]
-    public string? EmailForVerification { get; set; }
-
-    [TempData]
-    public bool? ShowOtpInput { get; set; }
-
-    [TempData]
-    public string? OtpCodeDisplay { get; set; }
-
-    [TempData]
-    public bool? EmailSent { get; set; }
 
     public class InputModel
     {
@@ -59,34 +44,24 @@ public class RegisterModel : PageModel
         public string ConfirmPassword { get; set; } = string.Empty;
     }
 
-    public void OnGet(string? returnUrl = null, bool reset = false)
+    public void OnGet(string? returnUrl = null)
     {
         ReturnUrl = returnUrl;
-        
-        // Clear any OTP-related TempData (no longer needed)
-            TempData.Remove("ShowOtpInput");
-            TempData.Remove("EmailForVerification");
-            TempData.Remove("RegistrationData");
-            TempData.Remove("OtpCode");
-            TempData.Remove("OtpCodeDisplay");
-            TempData.Remove("EmailSent");
-            TempData.Remove("OtpResent");
-        
-        ShowOtpInput = false;
-        EmailForVerification = null;
     }
 
     public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
         returnUrl ??= Url.Content("~/");
 
-        // Direct registration without OTP verification
+        // Check if running on localhost (Development environment)
+        var isLocalhost = HttpContext.Request.Host.Host == "localhost" || 
+                         HttpContext.Request.Host.Host == "127.0.0.1" ||
+                         Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT") == "Development";
+
+        // Step 1: Admin fills up form → Send OTP (only on localhost)
         if (ModelState.IsValid)
         {
-            _logger.LogInformation("=== DIRECT REGISTRATION START (NO OTP) ===");
-            _logger.LogInformation("Email: {Email}, FullName: {FullName}", Input.Email, Input.FullName);
-            
-            // Check if user already exists first
+            // Check if user already exists first (for both localhost and production)
             var userExists = await _authService.UserExistsAsync(Input.Email);
             if (userExists)
             {
@@ -95,19 +70,85 @@ public class RegisterModel : PageModel
                 return Page();
             }
 
-            // Direct registration - no OTP verification needed
-            var success = await _authService.RegisterAsync(Input.Email, Input.Password, Input.FullName);
-
-            if (success)
+            if (!isLocalhost)
             {
-                _logger.LogInformation("✓ User created successfully. Email: {Email}", Input.Email);
-                TempData["RegistrationSuccess"] = "Account created successfully! Please login.";
-                return RedirectToPage("./Login");
+                // On Render/Production: Direct registration without OTP
+                _logger.LogInformation("=== ADMIN REGISTRATION (PRODUCTION - NO OTP) ===");
+                var success = await _authService.RegisterAsync(Input.Email, Input.Password, Input.FullName);
+                if (success)
+                {
+                    TempData["RegistrationSuccess"] = "Account created successfully! Please login.";
+                    return RedirectToPage("./Login");
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, "Registration failed. Please try again.");
+                }
+                return Page();
+            }
+
+            // Localhost: Send OTP
+            _logger.LogInformation("=== ADMIN REGISTRATION (LOCALHOST - WITH OTP) ===");
+            _logger.LogInformation("Email: {Email}, FullName: {FullName}", Input.Email, Input.FullName);
+
+            // Generate and send OTP
+            string? otpCode = null;
+            bool emailSent = false;
+            
+            try
+            {
+                _logger.LogInformation("🔵 Calling GenerateAndSendOtpWithStatusAsync for {Email}", Input.Email);
+                var result = await _authService.GenerateAndSendOtpWithStatusAsync(
+                    Input.Email, 
+                    Input.Password, 
+                    Input.FullName
+                );
+                otpCode = result.OtpCode;
+                emailSent = result.EmailSent;
+                _logger.LogInformation("🔵 OTP generated: {HasOtp} (Code: {OtpCode}), Email sent: {EmailSent}", 
+                    !string.IsNullOrEmpty(otpCode), otpCode, emailSent);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "❌ Error generating/sending OTP for Email: {Email}, Error: {Error}", Input.Email, ex.Message);
+                ModelState.AddModelError(string.Empty, $"Failed to send OTP: {ex.Message}. Please try again.");
+                return Page();
+            }
+
+            if (!string.IsNullOrEmpty(otpCode))
+            {
+                _logger.LogInformation("🔵 Storing OTP data in TempData and redirecting to OTP page");
+                
+                // Store registration data in TempData
+                TempData["EmailForVerification"] = Input.Email;
+                TempData["ShowOtpInput"] = true;
+                TempData["EmailSent"] = emailSent;
+                TempData["RegistrationData"] = System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    Email = Input.Email,
+                    Password = Input.Password,
+                    FullName = Input.FullName
+                });
+
+                if (emailSent)
+                {
+                    _logger.LogInformation("✅ OTP sent successfully to {Email}", Input.Email);
+                    TempData["SuccessMessage"] = "OTP sent successfully";
+                }
+                else
+                {
+                    _logger.LogWarning("⚠️ OTP generated but email not sent to {Email}. OTP: {Otp}", Input.Email, otpCode);
+                    TempData["WarningMessage"] = $"OTP generated but email may not have been sent. Please check your email settings. OTP: {otpCode}";
+                }
+
+                // Redirect to VerifyOtp page
+                _logger.LogInformation("🔵 Redirecting to VerifyOtp page...");
+                return RedirectToPage("./VerifyOtp");
             }
             else
             {
-                _logger.LogWarning("Registration failed for Email: {Email}", Input.Email);
-                ModelState.AddModelError(string.Empty, "Registration failed. Please try again.");
+                _logger.LogWarning("❌ Failed to generate OTP for Email: {Email}", Input.Email);
+                ModelState.AddModelError(string.Empty, "Failed to generate OTP. Please try again.");
             }
         }
 

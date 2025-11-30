@@ -1605,14 +1605,13 @@ public class FirebaseService
             
             var now = DateTime.UtcNow;
             
-            // SIMPLER APPROACH: Get all unused OTPs and check manually
+            // Query by email first (no index needed), then filter by IsUsed and OTP in memory
             var query = _db.Collection("otpVerifications")
-                .WhereEqualTo("IsUsed", false)
-                .OrderByDescending("CreatedAt")
-                .Limit(200); // Get more records to be safe
+                .WhereEqualTo("Email", normalizedEmail)
+                .Limit(50); // Get recent OTPs for this email
             
             var snapshot = await query.GetSnapshotAsync();
-            _logger.LogInformation("Found {Count} total unused OTP records in database", snapshot.Count);
+            _logger.LogInformation("Found {Count} OTP records for email '{Email}' in database", snapshot.Count, normalizedEmail);
             
             // Check each document
             foreach (var doc in snapshot.Documents)
@@ -1629,27 +1628,38 @@ public class FirebaseService
                         storedEmail = emailValue?.ToString()?.Trim().ToLowerInvariant() ?? string.Empty;
                     }
                     
-                    // Skip if email doesn't match (case-insensitive)
-                    if (!string.Equals(storedEmail, normalizedEmail, StringComparison.OrdinalIgnoreCase))
+                    // Email should already match since we queried by email, but double-check
+                    var emailMatches = string.Equals(storedEmail, normalizedEmail, StringComparison.OrdinalIgnoreCase);
+                    if (!emailMatches)
                     {
+                        _logger.LogDebug("Email mismatch - Stored: '{StoredEmail}' != Input: '{InputEmail}'", storedEmail, normalizedEmail);
                         continue;
                     }
                     
                     // Get OTP code - handle all possible Firestore types
                     string? storedOtpCode = null;
                     
-                    // Try OtpCodeRaw first (new format)
+                    // Try OtpCodeRaw first (new format - this is the clean 6-digit code)
                     if (data.ContainsKey("OtpCodeRaw"))
                     {
                         var otpValue = data["OtpCodeRaw"];
                         if (otpValue is string str)
                         {
-                            storedOtpCode = str;
+                            storedOtpCode = str.Trim();
+                        }
+                        else if (otpValue is long lng)
+                        {
+                            storedOtpCode = lng.ToString("D6");
+                        }
+                        else if (otpValue is int num)
+                        {
+                            storedOtpCode = num.ToString("D6");
                         }
                         else if (otpValue != null)
                         {
                             storedOtpCode = otpValue.ToString()?.Trim() ?? string.Empty;
                         }
+                        _logger.LogInformation("Using OtpCodeRaw: '{OtpCodeRaw}' -> '{StoredCode}'", otpValue, storedOtpCode);
                     }
                     
                     // Fallback to OtpCode (may have OTP_ prefix or be a number)
@@ -1660,7 +1670,7 @@ public class FirebaseService
                         if (otpValue is string str)
                         {
                             // Remove OTP_ prefix if present
-                            storedOtpCode = str.Replace("OTP_", "");
+                            storedOtpCode = str.Replace("OTP_", "").Trim();
                         }
                         else if (otpValue is long lng)
                         {
@@ -1678,6 +1688,7 @@ public class FirebaseService
                         {
                             storedOtpCode = otpValue.ToString()?.Trim() ?? string.Empty;
                         }
+                        _logger.LogInformation("Using OtpCode (with prefix removal): '{OtpCode}' -> '{StoredCode}'", otpValue, storedOtpCode);
                     }
                     
                     if (string.IsNullOrEmpty(storedOtpCode))
@@ -1687,31 +1698,49 @@ public class FirebaseService
                     }
                     
                     // Normalize stored OTP - extract only digits
+                    var originalStoredOtp = storedOtpCode;
                     storedOtpCode = new string(storedOtpCode.Where(char.IsDigit).ToArray());
+                    
+                    if (originalStoredOtp != storedOtpCode)
+                    {
+                        _logger.LogInformation("OTP normalized: '{Original}' -> '{Normalized}'", originalStoredOtp, storedOtpCode);
+                    }
                     
                     // Ensure exactly 6 digits
                     if (storedOtpCode.Length < 6)
                     {
+                        var beforePad = storedOtpCode;
                         storedOtpCode = storedOtpCode.PadLeft(6, '0');
+                        _logger.LogInformation("OTP padded: '{Before}' -> '{After}'", beforePad, storedOtpCode);
                     }
                     else if (storedOtpCode.Length > 6)
                     {
+                        var beforeSub = storedOtpCode;
                         storedOtpCode = storedOtpCode.Substring(0, 6);
+                        _logger.LogInformation("OTP truncated: '{Before}' -> '{After}'", beforeSub, storedOtpCode);
                     }
                     
                     // Get expiration
                     DateTime expiresAt = DateTime.MinValue;
+                    bool hasExpiration = false;
                     if (data.ContainsKey("ExpiresAt"))
                     {
                         var expValue = data["ExpiresAt"];
                         if (expValue is Timestamp expTs)
                         {
                             expiresAt = expTs.ToDateTime();
+                            hasExpiration = true;
                         }
                         else if (expValue is DateTime dt)
                         {
                             expiresAt = dt;
+                            hasExpiration = true;
                         }
+                    }
+                    
+                    if (!hasExpiration)
+                    {
+                        _logger.LogWarning("⚠️ OTP document {DocId} has no ExpiresAt field - treating as valid", doc.Id);
                     }
                     
                     // Get IsUsed
@@ -1742,8 +1771,30 @@ public class FirebaseService
                     
                     if (otpMatches)
                     {
-                        // Check expiration
-                        if (expiresAt > now)
+                        _logger.LogInformation("🎯 OTP CODE MATCHED! Checking expiration...");
+                        
+                        // Check expiration - allow 1 minute grace period for clock differences
+                        bool isValid = false;
+                        if (!hasExpiration)
+                        {
+                            // No expiration set - treat as valid
+                            isValid = true;
+                            _logger.LogInformation("✓ OTP has no expiration - treating as valid");
+                        }
+                        else
+                        {
+                            var timeDifference = (expiresAt - now).TotalMinutes;
+                            _logger.LogInformation("Expiration check - ExpiresAt: {ExpiresAt}, Now: {Now}, Time difference: {Diff} minutes", 
+                                expiresAt, now, timeDifference);
+                            
+                            // Allow 1 minute grace period for clock differences
+                            if (expiresAt > now || timeDifference > -1)
+                            {
+                                isValid = true;
+                            }
+                        }
+                        
+                        if (isValid)
                         {
                             _logger.LogInformation("✓✓✓ OTP MATCHED AND VALID! ✓✓✓");
                             _logger.LogInformation("DocId: {DocId}, Email: {Email}, Code: {Code}, ExpiresAt: {ExpiresAt}, Now: {Now}", 
@@ -1782,7 +1833,7 @@ public class FirebaseService
                         else
                         {
                             var diffMinutes = (now - expiresAt).TotalMinutes;
-                            _logger.LogWarning("OTP matched but EXPIRED. ExpiresAt: {ExpiresAt}, Now: {Now}, Expired {Diff} minutes ago", 
+                            _logger.LogWarning("❌ OTP matched but EXPIRED. ExpiresAt: {ExpiresAt}, Now: {Now}, Expired {Diff} minutes ago", 
                                 expiresAt, now, diffMinutes);
                         }
                     }

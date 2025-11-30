@@ -18,6 +18,8 @@ public class EmailService
     {
         try
         {
+            _logger.LogInformation("📧 SendOtpEmailAsync called for {Email}, OTP: {Otp}", toEmail, otpCode);
+            
             var smtpServer = _configuration["EmailSettings:SmtpServer"] ?? "smtp.gmail.com";
             var smtpPort = int.Parse(_configuration["EmailSettings:SmtpPort"] ?? "587");
             var smtpUsername = _configuration["EmailSettings:SmtpUsername"];
@@ -25,9 +27,12 @@ public class EmailService
             var fromEmail = _configuration["EmailSettings:FromEmail"] ?? smtpUsername;
             var fromName = _configuration["EmailSettings:FromName"] ?? "Property Inventory System";
 
+            _logger.LogInformation("📧 Email config - Server: {Server}, Port: {Port}, Username: {HasUsername}, Password: {HasPassword}", 
+                smtpServer, smtpPort, !string.IsNullOrEmpty(smtpUsername), !string.IsNullOrEmpty(smtpPassword));
+
             if (string.IsNullOrEmpty(smtpUsername) || string.IsNullOrEmpty(smtpPassword))
             {
-                _logger.LogWarning("Email settings not configured. OTP: {Otp}", otpCode);
+                _logger.LogWarning("❌ Email settings not configured. OTP: {Otp}", otpCode);
                 return false;
             }
 
@@ -828,12 +833,12 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 60000; // 60 seconds timeout (increased for Render network)
+            smtpClient.Timeout = 15000; // 15 seconds timeout (reduced to prevent connection refused)
             smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
             
-            // Send email with timeout protection (30 seconds max for Render)
-            using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            await smtpClient.SendMailAsync(mailMessage).WaitAsync(sendCts.Token);
+            // Send email with timeout protection (10 seconds max to prevent connection refused)
+            using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await smtpClient.SendMailAsync(mailMessage, sendCts.Token);
             
             _logger.LogInformation("✅✅✅ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
                 emailType, toEmail, smtpServer, smtpPort);

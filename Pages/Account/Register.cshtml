@@ -135,6 +135,9 @@
             border-color: #006400;
             color: white;
         }
+        .bg-dark-green {
+            background-color: #006400 !important;
+        }
         @@media (max-width: 768px) {
             .split-container {
                 flex-direction: column;
@@ -169,53 +172,53 @@
                         <h2 class="mb-3">Sign Up</h2>
                     </div>
 
-                        <form method="post">
-                            <div asp-validation-summary="All" class="text-danger mb-3"></div>
+                    <!-- Registration Form -->
+                    <form method="post">
+                        <div asp-validation-summary="All" class="text-danger mb-3"></div>
 
-                            <div class="mb-3">
-                                <label asp-for="Input.FullName" class="form-label"></label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-person"></i></span>
-                                    <input asp-for="Input.FullName" class="form-control" autocomplete="name" />
-                                </div>
-                                <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                        <div class="mb-3">
+                            <label asp-for="Input.FullName" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                                <input asp-for="Input.FullName" class="form-control" autocomplete="name" />
                             </div>
+                            <span asp-validation-for="Input.FullName" class="text-danger"></span>
+                        </div>
 
-                            <div class="mb-3">
-                                <label asp-for="Input.Email" class="form-label"></label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-envelope"></i></span>
-                                    <input asp-for="Input.Email" class="form-control" autocomplete="username" />
-                                </div>
-                                <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        <div class="mb-3">
+                            <label asp-for="Input.Email" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                                <input asp-for="Input.Email" class="form-control" autocomplete="username" />
                             </div>
+                            <span asp-validation-for="Input.Email" class="text-danger"></span>
+                        </div>
 
-                            <div class="mb-3">
-                                <label asp-for="Input.Password" class="form-label"></label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-lock"></i></span>
-                                    <input asp-for="Input.Password" class="form-control" autocomplete="new-password" />
-                                </div>
-                                <span asp-validation-for="Input.Password" class="text-danger"></span>
+                        <div class="mb-3">
+                            <label asp-for="Input.Password" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                                <input asp-for="Input.Password" class="form-control" autocomplete="new-password" />
                             </div>
+                            <span asp-validation-for="Input.Password" class="text-danger"></span>
+                        </div>
 
-                            <div class="mb-3">
-                                <label asp-for="Input.ConfirmPassword" class="form-label"></label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                                    <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" />
-                                </div>
-                                <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                        <div class="mb-3">
+                            <label asp-for="Input.ConfirmPassword" class="form-label"></label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                                <input asp-for="Input.ConfirmPassword" class="form-control" autocomplete="new-password" />
                             </div>
+                            <span asp-validation-for="Input.ConfirmPassword" class="text-danger"></span>
+                        </div>
 
-                            <div class="d-grid">
-                                <button type="submit" class="btn btn-dark-green btn-lg" id="submitBtn">
-                                    <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
-                                    <span class="btn-text"><i class="bi bi-person-plus"></i> Sign Up</span>
-                                </button>
-                            </div>
-                        </form>
-                    }
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-dark-green btn-lg" id="submitBtn">
+                                <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                                <span class="btn-text"><i class="bi bi-person-plus"></i> Sign Up</span>
+                            </button>
+                        </div>
+                    </form>
 
                     <div class="mt-4 text-center">
                         <p class="mb-0">
@@ -251,18 +254,23 @@
             }
         });
 
-        // Loading spinner and double-submit protection
-        document.querySelector('form')?.addEventListener('submit', function(e) {
-            if (!this.checkValidity()) return;
-            
-            const btn = document.getElementById('submitBtn');
-            const spinner = btn.querySelector('.spinner-border');
-            const btnText = btn.querySelector('.btn-text');
-            
-            btn.disabled = true;
-            spinner.classList.remove('d-none');
-            btnText.textContent = ' Creating Account...';
-        });
+        // Loading spinner and double-submit protection for registration form
+        const registrationForm = document.querySelector('form[method="post"]');
+        if (registrationForm) {
+            registrationForm.addEventListener('submit', function(e) {
+                if (!this.checkValidity()) return;
+                
+                const btn = document.getElementById('submitBtn');
+                if (btn) {
+                    const spinner = btn.querySelector('.spinner-border');
+                    const btnText = btn.querySelector('.btn-text');
+                    
+                    btn.disabled = true;
+                    if (spinner) spinner.classList.remove('d-none');
+                    if (btnText) btnText.innerHTML = ' <i class="bi bi-envelope-paper"></i> Sending OTP...';
+                }
+            });
+        }
 
         // Clear password fields on load if there are errors to prevent sync issues
         window.addEventListener('load', function() {

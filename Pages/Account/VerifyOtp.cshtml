@@ -1,0 +1,204 @@
+@page
+@model PropertyInventory.Pages.Account.VerifyOtpModel
+@{
+    ViewData["Title"] = "Verify Email";
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - Property Inventory</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        body {
+            background: linear-gradient(135deg, #006400 0%, #004d00 50%, #006400 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            max-width: 500px;
+            width: 100%;
+            padding: 20px;
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+            background: white;
+            padding: 40px;
+        }
+        .btn-dark-green {
+            background-color: #006400;
+            border-color: #006400;
+            color: white;
+        }
+        .btn-dark-green:hover {
+            background-color: #004d00;
+            border-color: #004d00;
+            color: white;
+        }
+        .btn-outline-dark-green {
+            border-color: #006400;
+            color: #006400;
+        }
+        .btn-outline-dark-green:hover {
+            background-color: #006400;
+            border-color: #006400;
+            color: white;
+        }
+        .text-dark-green {
+            color: #006400;
+        }
+        .otp-input {
+            font-size: 1.5rem;
+            letter-spacing: 0.5rem;
+            font-weight: bold;
+            text-align: center;
+        }
+        .otp-input:focus {
+            border-color: #006400;
+            box-shadow: 0 0 0 0.2rem rgba(0, 100, 0, 0.25);
+        }
+        .input-group-text {
+            background-color: #006400;
+            color: white;
+            border-color: #006400;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="text-center mb-4">
+                <h2 class="mb-3">Verify Email</h2>
+            </div>
+
+            @if (!string.IsNullOrEmpty(Model.SuccessMessage))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="bi bi-check-circle"></i> OTP sent successfully to <strong>@Model.EmailForVerification</strong>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            @if (!string.IsNullOrEmpty(Model.WarningMessage))
+            {
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <i class="bi bi-exclamation-triangle"></i> @Model.WarningMessage
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            }
+
+            <div class="alert alert-info" role="alert">
+                <i class="bi bi-info-circle"></i> Please check your email inbox for the OTP code. Enter it below to complete your registration.
+            </div>
+
+            <form method="post" id="otpForm">
+                <div asp-validation-summary="All" class="text-danger mb-3"></div>
+
+                <div class="mb-3">
+                    <label asp-for="OtpCode" class="form-label">OTP Code</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-shield-check"></i></span>
+                        <input type="text" asp-for="OtpCode" class="form-control text-center otp-input" 
+                               placeholder="Enter 6-digit OTP" maxlength="6" autocomplete="off" 
+                               pattern="[0-9]{6}" required id="otpInput" />
+                    </div>
+                    <span asp-validation-for="OtpCode" class="text-danger"></span>
+                    <small class="form-text text-muted d-block mt-2">
+                        OTP expires in 10 minutes
+                    </small>
+                </div>
+
+                <div class="d-grid gap-2 mb-3">
+                    <button type="submit" class="btn btn-dark-green btn-lg" id="verifyBtn">
+                        <span class="spinner-border spinner-border-sm d-none" role="status" aria-hidden="true"></span>
+                        <span class="btn-text">
+                            <i class="bi bi-check-circle"></i> Verify OTP
+                        </span>
+                    </button>
+                    <form method="post" asp-page-handler="ResendOtp" id="resendOtpForm" style="display: inline;">
+                        <button type="submit" class="btn btn-outline-dark-green w-100" id="resendBtn">
+                            <i class="bi bi-arrow-clockwise"></i> Resend OTP
+                        </button>
+                    </form>
+                </div>
+            </form>
+
+            <div class="mt-4 text-center">
+                <p class="mb-0">
+                    <a asp-page="./Login" class="text-dark-green" id="loginLink">
+                        <i class="bi bi-box-arrow-in-right"></i> Already have an account? Login
+                    </a>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Auto-focus on OTP input
+        document.addEventListener('DOMContentLoaded', function() {
+            const otpInput = document.getElementById('otpInput');
+            if (otpInput) {
+                otpInput.focus();
+            }
+
+            // Only allow numbers
+            if (otpInput) {
+                otpInput.addEventListener('input', function(e) {
+                    this.value = this.value.replace(/[^0-9]/g, '');
+                    if (this.value.length === 6) {
+                        this.style.borderColor = '#28a745';
+                    } else {
+                        this.style.borderColor = '';
+                    }
+                });
+
+                // Prevent non-numeric input
+                otpInput.addEventListener('keypress', function(e) {
+                    if (!/[0-9]/.test(e.key) && !['Backspace', 'Delete', 'Tab', 'Enter'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                });
+            }
+
+            // Loading spinner for verify button
+            const verifyForm = document.getElementById('otpForm');
+            if (verifyForm) {
+                verifyForm.addEventListener('submit', function() {
+                    const verifyBtn = document.getElementById('verifyBtn');
+                    if (verifyBtn) {
+                        const spinner = verifyBtn.querySelector('.spinner-border');
+                        const btnText = verifyBtn.querySelector('.btn-text');
+                        if (spinner) spinner.classList.remove('d-none');
+                        if (btnText) btnText.style.opacity = '0.5';
+                        verifyBtn.disabled = true;
+                    }
+                });
+            }
+
+            // Loading spinner for resend button
+            const resendForm = document.getElementById('resendOtpForm');
+            if (resendForm) {
+                resendForm.addEventListener('submit', function() {
+                    const resendBtn = document.getElementById('resendBtn');
+                    if (resendBtn) {
+                        resendBtn.disabled = true;
+                        resendBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
+
