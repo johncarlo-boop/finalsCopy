@@ -73,7 +73,7 @@ public class EmailService
             mailMessage.IsBodyHtml = true;
 
             // Try sending email with retry logic and port fallback
-            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "OTP");
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername ?? string.Empty, smtpPassword ?? string.Empty, toEmail, "OTP");
             if (emailSent)
             {
                 _logger.LogInformation("OTP email sent successfully to {Email}", toEmail);
@@ -149,7 +149,7 @@ public class EmailService
             mailMessage.IsBodyHtml = true;
 
             // Try sending email with retry logic and port fallback
-            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "temporary password");
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername ?? string.Empty, smtpPassword ?? string.Empty, toEmail, "temporary password");
             if (emailSent)
             {
                 _logger.LogInformation("Temporary password email sent successfully to {Email}", toEmail);
@@ -311,7 +311,7 @@ public class EmailService
             mailMessage.IsBodyHtml = true;
 
             // Try sending email with retry logic and port fallback
-            return await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "approval");
+            return await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername ?? string.Empty, smtpPassword ?? string.Empty, toEmail, "approval");
         }
         catch (Exception ex)
         {
@@ -424,7 +424,7 @@ public class EmailService
             mailMessage.IsBodyHtml = true;
 
             // Try sending email with retry logic and port fallback
-            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "request confirmation");
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername ?? string.Empty, smtpPassword ?? string.Empty, toEmail, "request confirmation");
             if (emailSent)
             {
                 _logger.LogInformation("Account request confirmation email sent successfully to {Email}", toEmail);
@@ -545,7 +545,7 @@ public class EmailService
             mailMessage.IsBodyHtml = true;
 
             // Try sending email with retry logic and port fallback
-            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, 
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername ?? string.Empty, smtpPassword ?? string.Empty, 
                 string.Join(", ", adminEmails), "admin notification");
             if (emailSent)
             {
@@ -614,7 +614,7 @@ public class EmailService
             mailMessage.IsBodyHtml = true;
 
             // Try sending email with retry logic and port fallback
-            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "rejection");
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername ?? string.Empty, smtpPassword ?? string.Empty, toEmail, "rejection");
             if (emailSent)
             {
                 _logger.LogInformation("Account rejection email sent successfully to {Email}", toEmail);
@@ -770,7 +770,7 @@ public class EmailService
             mailMessage.IsBodyHtml = true;
 
             // Try sending email with retry logic and port fallback
-            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, 
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername ?? string.Empty, smtpPassword ?? string.Empty, 
                 string.Join(", ", adminEmails), "overdue property notification");
             if (emailSent)
             {
