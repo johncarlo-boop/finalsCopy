@@ -22,25 +22,61 @@ public class OverduePropertyNotificationService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Wait for initial delay before first check
-        await Task.Delay(_initialDelay, stoppingToken);
-
-        _logger.LogInformation("OverduePropertyNotificationService started. Will check for overdue properties every {Interval} hours.", 
-            _checkInterval.TotalHours);
-
-        while (!stoppingToken.IsCancellationRequested)
+        try
         {
+            // Wait for initial delay before first check
             try
             {
-                await CheckAndNotifyOverduePropertiesAsync(stoppingToken);
+                await Task.Delay(_initialDelay, stoppingToken);
             }
-            catch (Exception ex)
+            catch (OperationCanceledException)
             {
-                _logger.LogError(ex, "Error occurred while checking for overdue properties");
+                // Expected when app is shutting down
+                _logger.LogInformation("OverduePropertyNotificationService cancelled during initial delay");
+                return;
             }
 
-            // Wait for the next check interval
-            await Task.Delay(_checkInterval, stoppingToken);
+            _logger.LogInformation("OverduePropertyNotificationService started. Will check for overdue properties every {Interval} hours.", 
+                _checkInterval.TotalHours);
+
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                try
+                {
+                    await CheckAndNotifyOverduePropertiesAsync(stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when app is shutting down
+                    _logger.LogInformation("OverduePropertyNotificationService cancelled during check");
+                    break;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error occurred while checking for overdue properties");
+                }
+
+                // Wait for the next check interval
+                try
+                {
+                    await Task.Delay(_checkInterval, stoppingToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    // Expected when app is shutting down
+                    _logger.LogInformation("OverduePropertyNotificationService cancelled during wait interval");
+                    break;
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected when app is shutting down
+            _logger.LogInformation("OverduePropertyNotificationService stopped gracefully");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error in OverduePropertyNotificationService");
         }
     }
 
