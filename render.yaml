@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: property-inventory
+    runtime: dotnet
+    plan: free
+    buildCommand: dotnet publish -c Release -o ./publish
+    startCommand: cd publish && dotnet PropertyInventory.dll
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: ASPNETCORE_URLS
+        value: http://0.0.0.0:$PORT
+      # Firebase Configuration
+      - key: Firebase__ProjectId
+        sync: false
+      - key: Firebase__CredentialsPath
+        value: firebase-credentials.json
+      # Email Settings
+      - key: EmailSettings__SmtpServer
+        value: smtp.gmail.com
+      - key: EmailSettings__SmtpPort
+        value: "587"
+      - key: EmailSettings__SmtpUsername
+        sync: false
+      - key: EmailSettings__SmtpPassword
+        sync: false
+      - key: EmailSettings__FromEmail
+        sync: false
+      - key: EmailSettings__FromName
+        value: Property Inventory System
+      # App Settings
+      - key: AppSettings__BaseUrl
+        sync: false
+

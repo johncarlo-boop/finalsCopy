@@ -1,0 +1,45 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# User-specific files
+*.rsuser
+*.user
+*.suo
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation (optional - remove if you want to include)
+*.md
+!README.md
+
+# Local development files
+appsettings.Development.json
+
+# Firebase local files (credentials should be set via environment variables)
+firebase-credentials.json
+
+# Migration files (if not needed in production)
+# Migrations/
+
