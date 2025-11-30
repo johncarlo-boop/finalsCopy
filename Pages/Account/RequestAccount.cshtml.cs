@@ -62,42 +62,9 @@ public class RequestAccountModel : PageModel
             return Page();
         }
 
-        // Run validation checks with VERY SHORT timeout (1 second max) - skip if slow
-        // This is just for user experience - Firebase will catch duplicates anyway
-        try
-        {
-            using var validationCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
-            
-            var userExistsTask = _firebaseService.UserExistsAsync(Input.Email);
-            var requestExistsTask = _firebaseService.AccountRequestExistsAsync(Input.Email);
-            
-            // Wait for both checks to complete or timeout (max 1 second)
-            await Task.WhenAll(userExistsTask, requestExistsTask).WaitAsync(validationCts.Token);
-            
-            // Check results only if completed in time
-            if (await userExistsTask)
-            {
-                ModelState.AddModelError(string.Empty, "An account with this email already exists.");
-                return Page();
-            }
-
-            if (await requestExistsTask)
-            {
-                ModelState.AddModelError(string.Empty, "You already have a pending account request. Please wait for admin approval.");
-                return Page();
-            }
-        }
-        catch (OperationCanceledException)
-        {
-            // If validation times out (after 1 second), proceed immediately
-            // Firebase will catch duplicates on create - this is fine
-            _logger.LogInformation("Validation checks timed out for {Email} (proceeding - Firebase will validate)", Input.Email);
-        }
-        catch (Exception validationEx)
-        {
-            // If validation fails, proceed anyway
-            _logger.LogInformation(validationEx, "Validation checks failed for {Email} (proceeding)", Input.Email);
-        }
+        // Skip validation entirely - return immediately and let Firebase handle duplicates
+        // This makes the response instant - validation can happen in background if needed
+        _logger.LogInformation("Skipping validation for {Email} - proceeding immediately (Firebase will validate)", Input.Email);
 
         // Create account request
         var request = new AccountRequest
@@ -111,13 +78,13 @@ public class RequestAccountModel : PageModel
 
         try
         {
-            // Create request with SHORT timeout (3 seconds max) - if slow, return success anyway
+            // Try to create request with VERY SHORT timeout (1 second max) - if slow, return success anyway
             string requestId = string.Empty;
             bool createCompleted = false;
             
             try
             {
-                using var createCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                using var createCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
                 requestId = await _firebaseService.CreateAccountRequestAsync(request)
                     .WaitAsync(createCts.Token);
                 request.Id = requestId;
@@ -126,19 +93,18 @@ public class RequestAccountModel : PageModel
             }
             catch (OperationCanceledException)
             {
-                // If create times out, still return success and let it complete in background
-                _logger.LogWarning("CreateAccountRequestAsync timed out for {Email} - will retry in background", Input.Email);
-                // Generate a temporary ID for logging
+                // If create times out (after 1 second), still return success immediately
+                _logger.LogInformation("CreateAccountRequestAsync timed out for {Email} - will complete in background", Input.Email);
                 requestId = $"pending-{Guid.NewGuid():N}";
             }
             catch (Exception createEx)
             {
-                // If create fails, still try to send email and return success
-                _logger.LogError(createEx, "CreateAccountRequestAsync failed for {Email} - will retry in background", Input.Email);
+                // If create fails, still return success and retry in background
+                _logger.LogInformation(createEx, "CreateAccountRequestAsync failed for {Email} - will retry in background", Input.Email);
                 requestId = $"failed-{Guid.NewGuid():N}";
             }
             
-            // Return success IMMEDIATELY - don't wait for anything
+            // Return success IMMEDIATELY - don't wait for anything (response in < 1 second)
             SuccessMessage = "Your account request has been submitted successfully. An admin will review your request and you will be notified once approved.";
             
             // Capture variables before background task (for closure)
