@@ -1221,7 +1221,10 @@ public class FirebaseService
     {
         try
         {
-            // Ensure RequestedAt is in UTC
+            // Normalize email first (most important)
+            request.Email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
+            
+            // Set defaults efficiently
             if (request.RequestedAt == default(DateTime))
             {
                 request.RequestedAt = DateTime.UtcNow;
@@ -1231,30 +1234,26 @@ public class FirebaseService
                 request.RequestedAt = request.RequestedAt.ToUniversalTime();
             }
             
-            // Ensure Status is set
             if (request.Status == default(AccountRequestStatus))
             {
                 request.Status = AccountRequestStatus.Pending;
             }
             
-            // Normalize email
-            request.Email = request.Email?.Trim().ToLowerInvariant() ?? string.Empty;
-            
+            // Create document reference and set ID
             var docRef = _db.Collection("accountRequests").Document();
             request.Id = docRef.Id;
             
-            _logger.LogInformation("Creating account request: Id={Id}, Email={Email}, Name={Name}, Status={Status}, RequestedAt={RequestedAt}", 
-                docRef.Id, request.Email, request.FullName, request.Status, request.RequestedAt);
-            
+            // Write to Firestore immediately (no logging before write to save time)
             await docRef.SetAsync(request);
             
-            _logger.LogInformation("Account request created successfully: Id={Id}, Email={Email}", docRef.Id, request.Email);
+            // Log after successful write (non-blocking)
+            _logger.LogInformation("Account request created: Id={Id}, Email={Email}", docRef.Id, request.Email);
+            
             return docRef.Id;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creating account request: {Email}, Error: {Error}", request.Email, ex.Message);
-            _logger.LogError(ex, "Stack trace: {StackTrace}", ex.StackTrace);
+            _logger.LogError(ex, "Error creating account request: {Email}", request.Email);
             throw;
         }
     }

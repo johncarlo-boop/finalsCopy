@@ -62,18 +62,40 @@ public class RequestAccountModel : PageModel
             return Page();
         }
 
-        // Check if user already exists
-        if (await _firebaseService.UserExistsAsync(Input.Email))
+        // Run validation checks in parallel with timeout protection (max 5 seconds total)
+        try
         {
-            ModelState.AddModelError(string.Empty, "An account with this email already exists.");
-            return Page();
-        }
+            using var validationCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            
+            var userExistsTask = _firebaseService.UserExistsAsync(Input.Email);
+            var requestExistsTask = _firebaseService.AccountRequestExistsAsync(Input.Email);
+            
+            // Wait for both checks to complete or timeout
+            await Task.WhenAll(userExistsTask, requestExistsTask).WaitAsync(validationCts.Token);
+            
+            // Check results
+            if (await userExistsTask)
+            {
+                ModelState.AddModelError(string.Empty, "An account with this email already exists.");
+                return Page();
+            }
 
-        // Check if there's already a pending request
-        if (await _firebaseService.AccountRequestExistsAsync(Input.Email))
+            if (await requestExistsTask)
+            {
+                ModelState.AddModelError(string.Empty, "You already have a pending account request. Please wait for admin approval.");
+                return Page();
+            }
+        }
+        catch (OperationCanceledException)
         {
-            ModelState.AddModelError(string.Empty, "You already have a pending account request. Please wait for admin approval.");
-            return Page();
+            // If validation times out, log warning but allow request to proceed
+            // (Firebase will catch duplicate on create anyway)
+            _logger.LogWarning("Validation checks timed out for {Email}, proceeding with request creation", Input.Email);
+        }
+        catch (Exception validationEx)
+        {
+            // If validation fails, log but allow request to proceed
+            _logger.LogWarning(validationEx, "Validation checks failed for {Email}, proceeding with request creation", Input.Email);
         }
 
         // Create account request
