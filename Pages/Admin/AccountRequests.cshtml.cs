@@ -222,40 +222,59 @@ public class AccountRequestsModel : PageModel
                 await _firebaseService.UpdateAccountRequestAsync(requestId, request);
 
                 // Build login URL - MUST be absolute URL for Gmail mobile
-                // Priority: 1. AppSettings:BaseUrl, 2. Request URL, 3. Fallback
+                // Priority: 1. AppSettings:BaseUrl (Render URL), 2. Fallback to Render URL
                 string loginUrl;
                 var baseUrl = _configuration["AppSettings:BaseUrl"];
                 
-                if (!string.IsNullOrEmpty(baseUrl))
+                if (!string.IsNullOrEmpty(baseUrl) && baseUrl.Contains("onrender.com"))
                 {
-                    // Use configured base URL - point to MobileLogin page
+                    // Use configured Render URL - point to MobileLogin page
                     loginUrl = $"{baseUrl.TrimEnd('/')}/Account/MobileLogin";
-                    _logger.LogInformation("Using configured BaseUrl: {BaseUrl}", baseUrl);
+                    _logger.LogInformation("Using configured Render BaseUrl: {BaseUrl}", baseUrl);
                 }
                 else
                 {
-                    // Fallback to request URL
-                    var scheme = Request.IsHttps ? "https" : "http";
-                    var host = Request.Host.Value;
-                    loginUrl = $"{scheme}://{host}/Account/MobileLogin";
-                    _logger.LogInformation("Using request URL: {Scheme}://{Host}", scheme, host);
+                    // Always fallback to Render URL for mobile users
+                    loginUrl = "https://finalscopy-pdiw.onrender.com/Account/MobileLogin";
+                    _logger.LogInformation("Using Render fallback URL for mobile login");
                 }
                 
-                // Ensure URL is absolute
+                // Ensure URL is absolute and uses HTTPS
                 if (!loginUrl.StartsWith("http://", StringComparison.OrdinalIgnoreCase) && 
                     !loginUrl.StartsWith("https://", StringComparison.OrdinalIgnoreCase))
                 {
-                    loginUrl = $"http://{loginUrl}";
+                    loginUrl = $"https://{loginUrl}";
+                }
+                
+                // Force HTTPS for Render
+                if (loginUrl.StartsWith("http://") && loginUrl.Contains("onrender.com"))
+                {
+                    loginUrl = loginUrl.Replace("http://", "https://");
                 }
                 
                 _logger.LogInformation("Sending approval email to {Email} with login URL: {LoginUrl} and temporary password", request.Email, loginUrl);
                 
-                // Send approval email with temporary password and login link
-                await _emailService.SendAccountApprovalEmailAsync(request.Email, temporaryPassword, request.FullName, loginUrl);
+                // Send approval email with timeout protection
+                try
+                {
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
+                    await _emailService.SendAccountApprovalEmailAsync(request.Email, temporaryPassword, request.FullName, loginUrl)
+                        .WaitAsync(cts.Token);
+                    _logger.LogInformation("Approval email sent successfully to {Email}", request.Email);
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogWarning("Approval email sending timed out for {Email}, but account was approved", request.Email);
+                }
+                catch (Exception emailEx)
+                {
+                    _logger.LogWarning(emailEx, "Failed to send approval email to {Email}, but account was approved", request.Email);
+                }
 
                 SuccessMessage = $"Account approved for {request.Email}. Temporary password and login link sent via email.";
 
-                await _hubContext.Clients.All.SendAsync("AccountRequestStatusChanged", new
+                // SignalR notification (non-blocking)
+                _ = _hubContext.Clients.All.SendAsync("AccountRequestStatusChanged", new
                 {
                     requestId,
                     status = request.Status.ToString(),
@@ -263,6 +282,11 @@ public class AccountRequestsModel : PageModel
                     request.Email,
                     reviewedBy = request.ReviewedBy ?? "Admin",
                     request.ReviewedAt
+                }).ContinueWith(task => {
+                    if (task.IsFaulted)
+                    {
+                        _logger.LogError(task.Exception, "Failed to send SignalR notification for account approval {RequestId}", requestId);
+                    }
                 });
             }
             catch (Exception ex)

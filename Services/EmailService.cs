@@ -182,30 +182,29 @@ public class EmailService
             }
 
             // Build login URL - MUST be absolute URL for Gmail mobile
-            // Point to SetPassword page with email parameter
+            // Point to MobileLogin page (for mobile users)
             if (string.IsNullOrEmpty(loginUrl))
             {
                 if (!string.IsNullOrEmpty(baseUrl))
                 {
-                    var encodedEmail = Uri.EscapeDataString(toEmail);
-                    loginUrl = $"{baseUrl.TrimEnd('/')}/Account/SetPassword?email={encodedEmail}";
+                    // Use MobileLogin page for mobile users
+                    loginUrl = $"{baseUrl.TrimEnd('/')}/Account/MobileLogin";
                 }
                 else
                 {
-                    // Fallback - but this won't work in email, so log warning
-                    _logger.LogWarning("No base URL configured and no loginUrl provided. Link may not work in email.");
-                    var encodedEmail = Uri.EscapeDataString(toEmail);
-                    loginUrl = $"https://your-domain.com/Account/SetPassword?email={encodedEmail}"; // Placeholder - should be configured
+                    // Fallback to Render URL
+                    _logger.LogWarning("No base URL configured, using Render fallback URL");
+                    loginUrl = "https://finalscopy-pdiw.onrender.com/Account/MobileLogin";
                 }
             }
-            else
+            // Ensure loginUrl points to MobileLogin (for mobile users)
+            if (!loginUrl.Contains("/Account/MobileLogin"))
             {
-                // If loginUrl is provided but doesn't have email parameter, add it
-                if (!loginUrl.Contains("email="))
+                // Replace any other account page with MobileLogin
+                if (loginUrl.Contains("/Account/"))
                 {
-                    var encodedEmail = Uri.EscapeDataString(toEmail);
-                    var separator = loginUrl.Contains("?") ? "&" : "?";
-                    loginUrl = $"{loginUrl}{separator}email={encodedEmail}";
+                    var baseUrlPart = loginUrl.Substring(0, loginUrl.IndexOf("/Account/"));
+                    loginUrl = $"{baseUrlPart}/Account/MobileLogin";
                 }
             }
             
@@ -288,10 +287,10 @@ public class EmailService
                 <strong>⚠️ Important:</strong> 
                 <ul style=""margin: 10px 0; padding-left: 20px;"">
                     {(string.IsNullOrEmpty(temporaryPassword) ? @"
-                    <li>Click the login button above to access the mobile login page.</li>
+                    <li>Click the login button above to access the mobile login page on Render.</li>
                     <li>If this is your first login, you will be asked to set your password.</li>
                     " : @"
-                    <li>Use the temporary password above to login for the first time.</li>
+                    <li>Use the temporary password above to login for the first time on the Render mobile login page.</li>
                     <li>After logging in, please change your password in your profile settings.</li>
                     ")}
                     <li>Please choose a strong password (at least 6 characters).</li>
@@ -345,22 +344,24 @@ public class EmailService
             }
 
             // Build login URL for reference (will be used after approval)
+            // Always use Render URL for mobile users
             string loginUrl = "";
             try
             {
-                if (!string.IsNullOrEmpty(baseUrl))
+                if (!string.IsNullOrEmpty(baseUrl) && baseUrl.Contains("onrender.com"))
                 {
+                    // Use Render URL if configured
                     loginUrl = $"{baseUrl.TrimEnd('/')}/Account/MobileLogin";
                 }
                 else
                 {
-                    // Fallback to Render URL if baseUrl not configured
+                    // Always fallback to Render URL for mobile users
                     loginUrl = "https://finalscopy-pdiw.onrender.com/Account/MobileLogin";
                 }
             }
             catch (Exception urlEx)
             {
-                _logger.LogWarning(urlEx, "Error building login URL, using fallback");
+                _logger.LogWarning(urlEx, "Error building login URL, using Render fallback");
                 loginUrl = "https://finalscopy-pdiw.onrender.com/Account/MobileLogin";
             }
 
