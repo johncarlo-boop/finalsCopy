@@ -1,9 +1,17 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.DataProtection;
 using PropertyInventory.Hubs;
 using PropertyInventory.Middleware;
 using PropertyInventory.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Data Protection to use persistent storage
+var dataProtectionKeysPath = Path.Combine(builder.Environment.ContentRootPath, "DataProtection-Keys");
+Directory.CreateDirectory(dataProtectionKeysPath);
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("PropertyInventory");
 
 // Add services to the container.
 builder.Services.AddRazorPages();
