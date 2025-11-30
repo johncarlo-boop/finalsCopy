@@ -1,0 +1,55 @@
+# Build outputs
+bin/
+obj/
+publish/
+
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Documentation
+*.md
+!README.md
+
+# Local development files
+appsettings.Development.json
+
+# Firebase credentials (should be set via environment variables)
+firebase-credentials.json
+
+# Migration files
+Migrations/
+
+# Test files
+**/test/
+**/tests/
+**/*.test.*
+**/*.spec.*
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+*~
+
