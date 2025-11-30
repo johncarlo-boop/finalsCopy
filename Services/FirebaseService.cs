@@ -33,44 +33,38 @@ public class FirebaseService
                 credentialsPath = Path.Combine(_environment.ContentRootPath, credentialsPath);
             }
             
-            _logger.LogInformation("Attempting to initialize Firebase with ProjectId: {ProjectId}, CredentialsPath: {CredentialsPath}", projectId, credentialsPath);
-            
-            // Check for base64 credentials first
+            // Check for base64 credentials first (for Render deployment)
             var base64Credentials = Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_BASE64");
-            _logger.LogInformation("FIREBASE_CREDENTIALS_BASE64 is {Status}", string.IsNullOrEmpty(base64Credentials) ? "NOT SET" : "SET");
+            if (!string.IsNullOrEmpty(base64Credentials))
+            {
+                try
+                {
+                    _logger.LogInformation("Found FIREBASE_CREDENTIALS_BASE64, writing to temporary file");
+                    var credentialsBytes = Convert.FromBase64String(base64Credentials);
+                    var credentialsJson = System.Text.Encoding.UTF8.GetString(credentialsBytes);
+                    
+                    // Write to a temporary file in the app directory
+                    var tempCredentialsPath = Path.Combine(_environment.ContentRootPath, "firebase-credentials.json");
+                    File.WriteAllText(tempCredentialsPath, credentialsJson);
+                    credentialsPath = tempCredentialsPath;
+                    _logger.LogInformation("Firebase credentials written to: {CredentialsPath}", credentialsPath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to parse or write base64 credentials: {Error}", ex.Message);
+                    throw new InvalidOperationException($"Failed to process Firebase credentials from base64: {ex.Message}", ex);
+                }
+            }
+            
+            _logger.LogInformation("Attempting to initialize Firebase with ProjectId: {ProjectId}, CredentialsPath: {CredentialsPath}", projectId, credentialsPath);
             
             GoogleCredential? credential = null;
             
             // Initialize Firebase Admin if not already initialized
             if (FirebaseApp.DefaultInstance == null)
             {
-                // Try to load from base64 environment variable first (for Render deployment)
-                if (!string.IsNullOrEmpty(base64Credentials))
-                {
-                    try
-                    {
-                        _logger.LogInformation("Loading Firebase credentials from base64 environment variable");
-                        var credentialsBytes = Convert.FromBase64String(base64Credentials);
-                        var credentialsJson = System.Text.Encoding.UTF8.GetString(credentialsBytes);
-                        credential = GoogleCredential.FromJson(credentialsJson)
-                            .CreateScoped("https://www.googleapis.com/auth/cloud-platform", 
-                                         "https://www.googleapis.com/auth/datastore");
-                        
-                        FirebaseApp.Create(new FirebaseAdmin.AppOptions()
-                        {
-                            Credential = credential,
-                            ProjectId = projectId
-                        });
-                        _logger.LogInformation("Firebase Admin initialized successfully from base64 environment variable");
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to parse base64 credentials: {Error}", ex.Message);
-                        throw new InvalidOperationException($"Failed to parse Firebase credentials from base64: {ex.Message}", ex);
-                    }
-                }
                 // Try to load from file
-                else if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
+                if (!string.IsNullOrEmpty(credentialsPath) && File.Exists(credentialsPath))
                 {
                     _logger.LogInformation("Loading Firebase credentials from file: {CredentialsPath}", credentialsPath);
                     credential = GoogleCredential.FromFile(credentialsPath)
