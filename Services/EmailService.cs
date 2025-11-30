@@ -836,12 +836,27 @@ public class EmailService
                     
                     _logger.LogInformation("🔄 Connecting to SMTP server {Server}:{Port}...", smtpServer, port);
                     
-                    // Send email with timeout protection
+                    // Send email with timeout protection (10 seconds max)
                     using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-                    await smtpClient.SendMailAsync(mailMessage).WaitAsync(sendCts.Token);
-                    _logger.LogInformation("✅✅✅ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
-                        emailType, toEmail, smtpServer, port);
-                    return true;
+                    try
+                    {
+                        await smtpClient.SendMailAsync(mailMessage).WaitAsync(sendCts.Token);
+                        _logger.LogInformation("✅✅✅ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
+                            emailType, toEmail, smtpServer, port);
+                        return true;
+                    }
+                    catch (OperationCanceledException)
+                    {
+                        _logger.LogWarning("⏱️ SMTP connection/send timed out after 10 seconds on {Server}:{Port} (attempt {Attempt}) - trying next port/retry", 
+                            smtpServer, port, attempt);
+                        continue; // Try next port or retry
+                    }
+                }
+                catch (OperationCanceledException)
+                {
+                    _logger.LogWarning("⏱️ SMTP operation timed out on {Server}:{Port} (attempt {Attempt}) - trying next port/retry", 
+                        smtpServer, port, attempt);
+                    continue; // Try next port or retry
                 }
                 catch (System.Net.Sockets.SocketException socketEx) when (socketEx.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable)
                 {
