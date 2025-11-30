@@ -52,10 +52,16 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error");
     app.UseHsts();
+    // In production (Render), HTTPS is handled by the load balancer
+    // Only redirect to HTTPS if we're not in a containerized environment
+    app.UseHttpsRedirection();
+}
+else
+{
+    // In development, enable HTTPS redirection for camera access
+    app.UseHttpsRedirection();
 }
 
-// Enable HTTPS redirection for camera access (required by browsers)
-    app.UseHttpsRedirection();
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -69,16 +75,11 @@ app.UseMiddleware<RequirePasswordChangeMiddleware>();
 app.MapRazorPages();
 app.MapHub<PropertyHub>("/propertyHub");
 
-// Configure to listen on all network interfaces (0.0.0.0) so it can be accessed from other devices
-// Enable both HTTP and HTTPS for camera access (HTTPS required for camera permissions)
-var urls = new[] { 
-    "http://0.0.0.0:5000",
-    "https://0.0.0.0:5001"  // HTTPS port for camera access
-};
+// Configure to listen on the PORT environment variable (provided by Render)
+// Only use HTTP - Render handles HTTPS termination at the load balancer
+var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
+var url = $"http://0.0.0.0:{port}";
 app.Urls.Clear();
-foreach (var url in urls)
-{
-    app.Urls.Add(url);
-}
+app.Urls.Add(url);
 
 app.Run();
