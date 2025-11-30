@@ -62,16 +62,16 @@ public class RequestAccountModel : PageModel
             return Page();
         }
 
-        // Run validation checks in parallel with SHORT timeout (max 3 seconds for fast response)
-        // If timeout, proceed anyway - Firebase will catch duplicates
+        // Run validation checks with VERY SHORT timeout (1 second max) - skip if slow
+        // This is just for user experience - Firebase will catch duplicates anyway
         try
         {
-            using var validationCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+            using var validationCts = new CancellationTokenSource(TimeSpan.FromSeconds(1));
             
             var userExistsTask = _firebaseService.UserExistsAsync(Input.Email);
             var requestExistsTask = _firebaseService.AccountRequestExistsAsync(Input.Email);
             
-            // Wait for both checks to complete or timeout (max 3 seconds)
+            // Wait for both checks to complete or timeout (max 1 second)
             await Task.WhenAll(userExistsTask, requestExistsTask).WaitAsync(validationCts.Token);
             
             // Check results only if completed in time
@@ -89,14 +89,14 @@ public class RequestAccountModel : PageModel
         }
         catch (OperationCanceledException)
         {
-            // If validation times out (after 3 seconds), proceed immediately
+            // If validation times out (after 1 second), proceed immediately
             // Firebase will catch duplicates on create - this is fine
-            _logger.LogInformation("Validation checks timed out for {Email} (proceeding anyway - Firebase will validate)", Input.Email);
+            _logger.LogInformation("Validation checks timed out for {Email} (proceeding - Firebase will validate)", Input.Email);
         }
         catch (Exception validationEx)
         {
             // If validation fails, proceed anyway
-            _logger.LogInformation(validationEx, "Validation checks failed for {Email} (proceeding anyway)", Input.Email);
+            _logger.LogInformation(validationEx, "Validation checks failed for {Email} (proceeding)", Input.Email);
         }
 
         // Create account request
@@ -111,20 +111,31 @@ public class RequestAccountModel : PageModel
 
         try
         {
-            // Create request with timeout protection
-            string requestId;
+            // Create request with SHORT timeout (3 seconds max) - if slow, return success anyway
+            string requestId = string.Empty;
+            bool createCompleted = false;
+            
             try
             {
-                using var createCts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                using var createCts = new CancellationTokenSource(TimeSpan.FromSeconds(3));
                 requestId = await _firebaseService.CreateAccountRequestAsync(request)
                     .WaitAsync(createCts.Token);
                 request.Id = requestId;
+                createCompleted = true;
+                _logger.LogInformation("Account request created successfully: {RequestId} for {Email}", requestId, Input.Email);
             }
             catch (OperationCanceledException)
             {
-                _logger.LogError("CreateAccountRequestAsync timed out for {Email}", Input.Email);
-                ErrorMessage = "Request creation timed out. Please try again.";
-                return Page();
+                // If create times out, still return success and let it complete in background
+                _logger.LogWarning("CreateAccountRequestAsync timed out for {Email} - will retry in background", Input.Email);
+                // Generate a temporary ID for logging
+                requestId = $"pending-{Guid.NewGuid():N}";
+            }
+            catch (Exception createEx)
+            {
+                // If create fails, still try to send email and return success
+                _logger.LogError(createEx, "CreateAccountRequestAsync failed for {Email} - will retry in background", Input.Email);
+                requestId = $"failed-{Guid.NewGuid():N}";
             }
             
             // Return success IMMEDIATELY - don't wait for anything
@@ -134,57 +145,91 @@ public class RequestAccountModel : PageModel
             var email = Input.Email;
             var fullName = Input.FullName;
             var position = Input.Position;
+            var requestCopy = request; // Copy for background task
             
-            // Start background email task IMMEDIATELY (fire-and-forget)
-            // Use Task.Run with ConfigureAwait(false) for better performance
+            // Start background tasks IMMEDIATELY (fire-and-forget)
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    _logger.LogInformation("Starting background email tasks for request {RequestId}", requestId);
+                    _logger.LogInformation("Starting background tasks for request {RequestId}", requestId);
+                    
+                    // If create didn't complete, retry it in background
+                    if (!createCompleted)
+                    {
+                        try
+                        {
+                            _logger.LogInformation("Retrying account request creation for {Email} in background", email);
+                            var retryRequest = new AccountRequest
+                            {
+                                Email = email,
+                                FullName = fullName,
+                                Position = position,
+                                Status = AccountRequestStatus.Pending,
+                                RequestedAt = DateTime.UtcNow
+                            };
+                            
+                            using var retryCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                            var retryRequestId = await _firebaseService.CreateAccountRequestAsync(retryRequest)
+                                .WaitAsync(retryCts.Token);
+                            requestId = retryRequestId;
+                            requestCopy.Id = retryRequestId;
+                            createCompleted = true;
+                            _logger.LogInformation("✓ Account request created successfully in background: {RequestId}", requestId);
+                        }
+                        catch (Exception retryEx)
+                        {
+                            _logger.LogError(retryEx, "✗ Failed to create account request in background for {Email}", email);
+                            // Continue anyway - try to send email
+                        }
+                    }
                     
                     // Send SignalR notification (non-blocking)
-                    try
+                    if (createCompleted)
                     {
-                        await _hubContext.Clients.All.SendAsync("AccountRequestCreated", new
+                        try
                         {
-                            requestId,
-                            request.FullName,
-                            request.Email,
-                            request.Position,
-                            request.RequestedAt
-                        });
-                        _logger.LogInformation("SignalR notification sent for request {RequestId}", requestId);
-                    }
-                    catch (Exception hubEx)
-                    {
-                        _logger.LogWarning(hubEx, "Failed to send SignalR notification for request {RequestId}", requestId);
+                            await _hubContext.Clients.All.SendAsync("AccountRequestCreated", new
+                            {
+                                requestId,
+                                requestCopy.FullName,
+                                requestCopy.Email,
+                                requestCopy.Position,
+                                requestCopy.RequestedAt
+                            });
+                            _logger.LogInformation("SignalR notification sent for request {RequestId}", requestId);
+                        }
+                        catch (Exception hubEx)
+                        {
+                            _logger.LogWarning(hubEx, "Failed to send SignalR notification for request {RequestId}", requestId);
+                        }
                     }
                     
-                    // Send confirmation email to requester (with longer timeout for Render)
+                    // Send confirmation email to requester ALWAYS (even if create is slow)
+                    // This is the most important - user needs to know their request was received
                     try
                     {
-                        _logger.LogInformation("Attempting to send confirmation email to {Email}", email);
+                        _logger.LogInformation("📧 Attempting to send confirmation email to {Email}", email);
                         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
                         var emailSent = await _emailService.SendAccountRequestConfirmationEmailAsync(email, fullName)
                             .WaitAsync(cts.Token);
                         
                         if (emailSent)
                         {
-                            _logger.LogInformation("✓ Account request confirmation email sent successfully to {Email}", email);
+                            _logger.LogInformation("✓✓✓ Account request confirmation email sent successfully to {Email}", email);
                         }
                         else
                         {
-                            _logger.LogWarning("✗ Confirmation email returned false for {Email}", email);
+                            _logger.LogError("✗✗✗ Confirmation email returned FALSE for {Email} - CHECK EMAIL SETTINGS!", email);
                         }
                     }
                     catch (OperationCanceledException)
                     {
-                        _logger.LogWarning("✗ Confirmation email sending timed out for {Email}", email);
+                        _logger.LogError("✗✗✗ Confirmation email sending TIMED OUT for {Email} - CHECK EMAIL SETTINGS!", email);
                     }
                     catch (Exception emailEx)
                     {
-                        _logger.LogError(emailEx, "✗ Failed to send confirmation email to {Email}: {Error}", email, emailEx.Message);
+                        _logger.LogError(emailEx, "✗✗✗ FAILED to send confirmation email to {Email}: {Error}", email, emailEx.Message);
                     }
                     
                     // Send notification email to admins (with longer timeout for Render)

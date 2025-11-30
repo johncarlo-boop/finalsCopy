@@ -72,14 +72,13 @@ public class EmailService
 </html>";
             mailMessage.IsBodyHtml = true;
 
-            using var smtpClient = new SmtpClient(smtpServer, smtpPort);
-            smtpClient.EnableSsl = true;
-            smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 30000; // 30 seconds timeout
-
-            await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("OTP email sent successfully to {Email}", toEmail);
-            return true;
+            // Try sending email with retry logic and port fallback
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "OTP");
+            if (emailSent)
+            {
+                _logger.LogInformation("OTP email sent successfully to {Email}", toEmail);
+            }
+            return emailSent;
         }
         catch (Exception ex)
         {
@@ -149,14 +148,13 @@ public class EmailService
 </html>";
             mailMessage.IsBodyHtml = true;
 
-            using var smtpClient = new SmtpClient(smtpServer, smtpPort);
-            smtpClient.EnableSsl = true;
-            smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 30000; // 30 seconds timeout
-
-            await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("Temporary password email sent successfully to {Email}", toEmail);
-            return true;
+            // Try sending email with retry logic and port fallback
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "temporary password");
+            if (emailSent)
+            {
+                _logger.LogInformation("Temporary password email sent successfully to {Email}", toEmail);
+            }
+            return emailSent;
         }
         catch (Exception ex)
         {
@@ -312,18 +310,12 @@ public class EmailService
 </html>";
             mailMessage.IsBodyHtml = true;
 
-            using var smtpClient = new SmtpClient(smtpServer, smtpPort);
-            smtpClient.EnableSsl = true;
-            smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 30000; // 30 seconds timeout
-
-            await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("Account approval email sent successfully to {Email} with login link: {LoginUrl}", toEmail, loginUrl);
-            return true;
+            // Try sending email with retry logic and port fallback
+            return await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "approval");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to send account approval email to {Email}", toEmail);
+            _logger.LogError(ex, "Failed to send account approval email to {Email}: {Error}", toEmail, ex.Message);
             return false;
         }
     }
@@ -431,14 +423,13 @@ public class EmailService
 </html>";
             mailMessage.IsBodyHtml = true;
 
-            using var smtpClient = new SmtpClient(smtpServer, smtpPort);
-            smtpClient.EnableSsl = true;
-            smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 30000; // 30 seconds timeout
-
-            await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("Account request confirmation email sent successfully to {Email}", toEmail);
-            return true;
+            // Try sending email with retry logic and port fallback
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "request confirmation");
+            if (emailSent)
+            {
+                _logger.LogInformation("Account request confirmation email sent successfully to {Email}", toEmail);
+            }
+            return emailSent;
         }
         catch (Exception ex)
         {
@@ -553,14 +544,14 @@ public class EmailService
 </html>";
             mailMessage.IsBodyHtml = true;
 
-            using var smtpClient = new SmtpClient(smtpServer, smtpPort);
-            smtpClient.EnableSsl = true;
-            smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 30000; // 30 seconds timeout
-
-            await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("New account request notification sent to {Count} admin(s)", mailMessage.To.Count);
-            return true;
+            // Try sending email with retry logic and port fallback
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, 
+                string.Join(", ", adminEmails), "admin notification");
+            if (emailSent)
+            {
+                _logger.LogInformation("New account request notification sent to {Count} admin(s)", mailMessage.To.Count);
+            }
+            return emailSent;
         }
         catch (Exception ex)
         {
@@ -622,14 +613,13 @@ public class EmailService
 </html>";
             mailMessage.IsBodyHtml = true;
 
-            using var smtpClient = new SmtpClient(smtpServer, smtpPort);
-            smtpClient.EnableSsl = true;
-            smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 30000; // 30 seconds timeout
-
-            await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("Account rejection email sent successfully to {Email}", toEmail);
-            return true;
+            // Try sending email with retry logic and port fallback
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, toEmail, "rejection");
+            if (emailSent)
+            {
+                _logger.LogInformation("Account rejection email sent successfully to {Email}", toEmail);
+            }
+            return emailSent;
         }
         catch (Exception ex)
         {
@@ -779,21 +769,90 @@ public class EmailService
 </html>";
             mailMessage.IsBodyHtml = true;
 
-            using var smtpClient = new SmtpClient(smtpServer, smtpPort);
-            smtpClient.EnableSsl = true;
-            smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 30000; // 30 seconds timeout
-
-            await smtpClient.SendMailAsync(mailMessage);
-            _logger.LogInformation("Overdue property notification sent successfully to {Count} admin(s) for {PropertyCount} overdue property(ies)", 
-                mailMessage.To.Count, overdueProperties.Count);
-            return true;
+            // Try sending email with retry logic and port fallback
+            var emailSent = await SendEmailWithRetryAsync(mailMessage, smtpServer, smtpPort, smtpUsername, smtpPassword, 
+                string.Join(", ", adminEmails), "overdue property notification");
+            if (emailSent)
+            {
+                _logger.LogInformation("Overdue property notification sent successfully to {Count} admin(s) for {PropertyCount} overdue property(ies)", 
+                    mailMessage.To.Count, overdueProperties.Count);
+            }
+            return emailSent;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send overdue property notification to admins");
             return false;
         }
+    }
+
+    // Helper method to send email with retry logic and port fallback
+    private async Task<bool> SendEmailWithRetryAsync(
+        MailMessage mailMessage, 
+        string smtpServer, 
+        int smtpPort, 
+        string smtpUsername, 
+        string smtpPassword, 
+        string toEmail, 
+        string emailType)
+    {
+        const int maxRetries = 3;
+        var portsToTry = new[] { smtpPort, 465, 587 }; // Try original port, then 465 (SSL), then 587 (TLS)
+        
+        for (int attempt = 1; attempt <= maxRetries; attempt++)
+        {
+            foreach (var port in portsToTry)
+            {
+                try
+                {
+                    _logger.LogInformation("Attempting to send {EmailType} email to {Email} via {Server}:{Port} (attempt {Attempt}/{MaxRetries})", 
+                        emailType, toEmail, smtpServer, port, attempt, maxRetries);
+                    
+                    using var smtpClient = new SmtpClient(smtpServer, port);
+                    smtpClient.EnableSsl = true;
+                    smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+                    smtpClient.Timeout = 30000; // 30 seconds timeout
+                    
+                    // Add delay between retries (exponential backoff)
+                    if (attempt > 1)
+                    {
+                        var delay = TimeSpan.FromSeconds(Math.Pow(2, attempt - 1)); // 2s, 4s, 8s
+                        _logger.LogInformation("Waiting {Delay} seconds before retry...", delay.TotalSeconds);
+                        await Task.Delay(delay);
+                    }
+                    
+                    await smtpClient.SendMailAsync(mailMessage);
+                    _logger.LogInformation("✓ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
+                        emailType, toEmail, smtpServer, port);
+                    return true;
+                }
+                catch (System.Net.Sockets.SocketException socketEx) when (socketEx.SocketErrorCode == System.Net.Sockets.SocketError.NetworkUnreachable)
+                {
+                    _logger.LogWarning("Network unreachable error on {Server}:{Port} (attempt {Attempt}) - trying next port/retry", 
+                        smtpServer, port, attempt);
+                    // Try next port or retry
+                    continue;
+                }
+                catch (System.Net.Sockets.SocketException socketEx)
+                {
+                    _logger.LogWarning("Socket error on {Server}:{Port} (attempt {Attempt}): {Error} - trying next port/retry", 
+                        smtpServer, port, attempt, socketEx.Message);
+                    // Try next port or retry
+                    continue;
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Error sending email via {Server}:{Port} (attempt {Attempt}): {Error} - trying next port/retry", 
+                        smtpServer, port, attempt, ex.Message);
+                    // Try next port or retry
+                    continue;
+                }
+            }
+        }
+        
+        _logger.LogError("✗ Failed to send {EmailType} email to {Email} after {MaxRetries} attempts on all ports", 
+            emailType, toEmail, maxRetries);
+        return false;
     }
 }
 
