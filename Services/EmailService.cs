@@ -828,11 +828,11 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-            smtpClient.Timeout = 10000; // 10 seconds timeout
+            smtpClient.Timeout = 60000; // 60 seconds timeout (increased for Render network)
             smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
             
-            // Send email with timeout protection (10 seconds max)
-            using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            // Send email with timeout protection (30 seconds max for Render)
+            using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             await smtpClient.SendMailAsync(mailMessage).WaitAsync(sendCts.Token);
             
             _logger.LogInformation("✅✅✅ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
@@ -841,8 +841,9 @@ public class EmailService
         }
         catch (OperationCanceledException)
         {
-            _logger.LogError("⏱️ SMTP connection/send timed out after 10 seconds on {Server}:{Port}", 
+            _logger.LogError("⏱️ SMTP connection/send timed out after 30 seconds on {Server}:{Port}", 
                 smtpServer, smtpPort);
+            _logger.LogError("⚠️ This might be due to Render blocking outbound SMTP connections. Check Render's network restrictions.");
             return false;
         }
         catch (Exception ex)

@@ -257,18 +257,26 @@ public class AccountRequestsModel : PageModel
                 // Send approval email with timeout protection
                 try
                 {
-                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(20));
-                    await _emailService.SendAccountApprovalEmailAsync(request.Email, temporaryPassword, request.FullName, loginUrl)
+                    using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(35));
+                    var emailSent = await _emailService.SendAccountApprovalEmailAsync(request.Email, temporaryPassword, request.FullName, loginUrl)
                         .WaitAsync(cts.Token);
-                    _logger.LogInformation("Approval email sent successfully to {Email}", request.Email);
+                    
+                    if (emailSent)
+                    {
+                        _logger.LogInformation("✅ Approval email sent successfully to {Email}", request.Email);
+                    }
+                    else
+                    {
+                        _logger.LogError("❌ Approval email returned FALSE for {Email} - email was NOT sent!", request.Email);
+                    }
                 }
                 catch (OperationCanceledException)
                 {
-                    _logger.LogWarning("Approval email sending timed out for {Email}, but account was approved", request.Email);
+                    _logger.LogError("❌ Approval email sending timed out for {Email}, but account was approved", request.Email);
                 }
                 catch (Exception emailEx)
                 {
-                    _logger.LogWarning(emailEx, "Failed to send approval email to {Email}, but account was approved", request.Email);
+                    _logger.LogError(emailEx, "❌ Failed to send approval email to {Email}, but account was approved", request.Email);
                 }
 
                 SuccessMessage = $"Account approved for {request.Email}. Temporary password and login link sent via email.";
