@@ -35,13 +35,16 @@ public class FirebaseService
             
             _logger.LogInformation("Attempting to initialize Firebase with ProjectId: {ProjectId}, CredentialsPath: {CredentialsPath}", projectId, credentialsPath);
             
+            // Check for base64 credentials first
+            var base64Credentials = Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_BASE64");
+            _logger.LogInformation("FIREBASE_CREDENTIALS_BASE64 is {Status}", string.IsNullOrEmpty(base64Credentials) ? "NOT SET" : "SET");
+            
             GoogleCredential? credential = null;
             
             // Initialize Firebase Admin if not already initialized
             if (FirebaseApp.DefaultInstance == null)
             {
                 // Try to load from base64 environment variable first (for Render deployment)
-                var base64Credentials = Environment.GetEnvironmentVariable("FIREBASE_CREDENTIALS_BASE64");
                 if (!string.IsNullOrEmpty(base64Credentials))
                 {
                     try
