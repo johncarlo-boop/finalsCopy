@@ -823,7 +823,8 @@ public class EmailService
                     using var smtpClient = new SmtpClient(smtpServer, port);
                     smtpClient.EnableSsl = true;
                     smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
-                    smtpClient.Timeout = 30000; // 30 seconds timeout
+                    smtpClient.Timeout = 10000; // 10 seconds timeout (reduced from 30s)
+                    smtpClient.DeliveryMethod = SmtpDeliveryMethod.Network;
                     
                     // Add delay between retries (exponential backoff)
                     if (attempt > 1)
@@ -834,7 +835,10 @@ public class EmailService
                     }
                     
                     _logger.LogInformation("🔄 Connecting to SMTP server {Server}:{Port}...", smtpServer, port);
-                    await smtpClient.SendMailAsync(mailMessage);
+                    
+                    // Send email with timeout protection
+                    using var sendCts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+                    await smtpClient.SendMailAsync(mailMessage).WaitAsync(sendCts.Token);
                     _logger.LogInformation("✅✅✅ {EmailType} email sent successfully to {Email} via {Server}:{Port}", 
                         emailType, toEmail, smtpServer, port);
                     return true;
