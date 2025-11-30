@@ -61,11 +61,16 @@ app.UseMiddleware<RequirePasswordChangeMiddleware>();
 app.MapRazorPages();
 app.MapHub<PropertyHub>("/propertyHub");
 
-// Configure port for Render deployment
-// Render provides PORT environment variable, fallback to 5000 for local development
-var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-var url = $"http://0.0.0.0:{port}";
+// Configure to listen on all network interfaces (0.0.0.0) so it can be accessed from other devices
+// Enable both HTTP and HTTPS for camera access (HTTPS required for camera permissions)
+var urls = new[] { 
+    "http://0.0.0.0:5000",
+    "https://0.0.0.0:5001"  // HTTPS port for camera access
+};
 app.Urls.Clear();
-app.Urls.Add(url);
+foreach (var url in urls)
+{
+    app.Urls.Add(url);
+}
 
 app.Run();
