@@ -75,6 +75,7 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+            smtpClient.Timeout = 30000; // 30 seconds timeout
 
             await smtpClient.SendMailAsync(mailMessage);
             _logger.LogInformation("OTP email sent successfully to {Email}", toEmail);
@@ -151,6 +152,7 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+            smtpClient.Timeout = 30000; // 30 seconds timeout
 
             await smtpClient.SendMailAsync(mailMessage);
             _logger.LogInformation("Temporary password email sent successfully to {Email}", toEmail);
@@ -313,6 +315,7 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+            smtpClient.Timeout = 30000; // 30 seconds timeout
 
             await smtpClient.SendMailAsync(mailMessage);
             _logger.LogInformation("Account approval email sent successfully to {Email} with login link: {LoginUrl}", toEmail, loginUrl);
@@ -431,6 +434,7 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+            smtpClient.Timeout = 30000; // 30 seconds timeout
 
             await smtpClient.SendMailAsync(mailMessage);
             _logger.LogInformation("Account request confirmation email sent successfully to {Email}", toEmail);
@@ -552,6 +556,7 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+            smtpClient.Timeout = 30000; // 30 seconds timeout
 
             await smtpClient.SendMailAsync(mailMessage);
             _logger.LogInformation("New account request notification sent to {Count} admin(s)", mailMessage.To.Count);
@@ -620,6 +625,7 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+            smtpClient.Timeout = 30000; // 30 seconds timeout
 
             await smtpClient.SendMailAsync(mailMessage);
             _logger.LogInformation("Account rejection email sent successfully to {Email}", toEmail);
@@ -776,6 +782,7 @@ public class EmailService
             using var smtpClient = new SmtpClient(smtpServer, smtpPort);
             smtpClient.EnableSsl = true;
             smtpClient.Credentials = new NetworkCredential(smtpUsername, smtpPassword);
+            smtpClient.Timeout = 30000; // 30 seconds timeout
 
             await smtpClient.SendMailAsync(mailMessage);
             _logger.LogInformation("Overdue property notification sent successfully to {Count} admin(s) for {PropertyCount} overdue property(ies)", 
