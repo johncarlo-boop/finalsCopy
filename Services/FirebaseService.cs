@@ -241,30 +241,62 @@ public class FirebaseService
     {
         try
         {
-            var snapshot = await _db.Collection("users").GetSnapshotAsync();
-            var admins = new List<ApplicationUser>();
+            // Use two queries to get admin users (Firestore doesn't support OR queries)
+            // This is much faster than fetching all users and filtering in memory
+            var adminByFlagTask = _db.Collection("users")
+                .WhereEqualTo("IsAdmin", true)
+                .GetSnapshotAsync();
             
-            foreach (var doc in snapshot.Documents)
+            var adminByTypeTask = _db.Collection("users")
+                .WhereEqualTo("UserType", UserType.Admin.ToString())
+                .GetSnapshotAsync();
+            
+            // Execute both queries in parallel
+            await Task.WhenAll(adminByFlagTask, adminByTypeTask);
+            
+            var adminByFlagSnapshot = await adminByFlagTask;
+            var adminByTypeSnapshot = await adminByTypeTask;
+            
+            // Combine results and remove duplicates by email
+            var adminDict = new Dictionary<string, ApplicationUser>();
+            
+            // Add users with IsAdmin = true
+            foreach (var doc in adminByFlagSnapshot.Documents)
             {
                 try
                 {
                     var user = doc.ConvertTo<ApplicationUser>();
                     user.Id = doc.Id;
-                    
-                    // Get admin users (IsAdmin = true or UserType = Admin)
-                    if (user.IsAdmin || user.UserType == UserType.Admin)
+                    if (!string.IsNullOrWhiteSpace(user.Email))
                     {
-                        admins.Add(user);
+                        adminDict[user.Email.ToLowerInvariant()] = user;
                     }
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Error converting user document {DocId}", doc.Id);
-                    continue;
                 }
             }
             
-            return admins;
+            // Add users with UserType = Admin (may overlap, but dictionary handles duplicates)
+            foreach (var doc in adminByTypeSnapshot.Documents)
+            {
+                try
+                {
+                    var user = doc.ConvertTo<ApplicationUser>();
+                    user.Id = doc.Id;
+                    if (!string.IsNullOrWhiteSpace(user.Email))
+                    {
+                        adminDict[user.Email.ToLowerInvariant()] = user;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error converting user document {DocId}", doc.Id);
+                }
+            }
+            
+            return adminDict.Values.ToList();
         }
         catch (Exception ex)
         {
