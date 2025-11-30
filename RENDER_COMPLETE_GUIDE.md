@@ -192,23 +192,75 @@ ewogICJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsCiAgInByb2plY3RfaWQiOiAicHJvcGVydHlpbnZl
 
 ## Email Configuration
 
-### Gmail App Password Setup
+### ⚠️ IMPORTANT: Render Free Tier SMTP Restrictions
 
-1. Pumunta sa: https://myaccount.google.com/apppasswords
-2. I-create ang bagong App Password para sa "Mail"
-3. I-copy ang 16-character password (walang spaces)
-4. I-update sa Render: `EmailSettings__SmtpPassword`
+**Render's free tier BLOCKS outbound SMTP on ports 25, 465, and 587** (as of Sept 26, 2025).
 
-### Email Environment Variables
+**Solution: Use SMTP2GO (FREE - Works on Render Free Tier)**
 
-I-set ang lahat ng email settings sa Render:
+### SMTP2GO Setup (Recommended for Free Tier)
 
+#### Step 1: Sign Up for SMTP2GO
+
+1. Pumunta sa: https://www.smtp2go.com/
+2. Click "Sign Up Free"
+3. I-create ang account (free tier: **1,000 emails/month**, 200/day)
+
+#### Step 2: Verify Your Email/Domain
+
+1. After sign up, pumunta sa **"Sending > Verified Senders"**
+2. I-add ang email address mo (e.g., `jeremiahyu050@gmail.com`)
+3. I-verify ang email (check inbox for verification link)
+
+#### Step 3: Get SMTP Credentials
+
+1. Pumunta sa **"Settings > SMTP Users"**
+2. I-create ang bagong SMTP user o gamitin ang default
+3. I-copy ang:
+   - **SMTP Username** (usually your email or a username)
+   - **SMTP Password** (click "Show" to reveal)
+
+#### Step 4: Configure in Render
+
+I-set ang environment variables sa Render:
+
+```
+EmailSettings__SmtpServer = mail.smtp2go.com
+EmailSettings__SmtpPort = 2525
+EmailSettings__SmtpUsername = your-smtp2go-username
+EmailSettings__SmtpPassword = your-smtp2go-password
+EmailSettings__FromEmail = your-verified-email@example.com
+EmailSettings__FromName = Property Inventory System
+```
+
+**Important:**
+- `EmailSettings__FromEmail` dapat verified sender sa SMTP2GO
+- Port 2525 ay open sa Render free tier
+- Free tier limit: 1,000 emails/month, 200/day
+
+### Alternative Options
+
+#### Option 2: Use SendGrid API (FREE - 100 emails/day for 60 days)
+
+1. Sign up sa [SendGrid](https://sendgrid.com/free/)
+2. Get API key
+3. Update code to use SendGrid API instead of SMTP
+
+#### Option 3: Upgrade to Paid Plan (Use Gmail SMTP)
+
+- Render paid plans allow SMTP on ports 25, 465, 587
+- Can use Gmail SMTP normally
+- Setup Gmail App Password:
+  1. Pumunta sa: https://myaccount.google.com/apppasswords
+  2. I-create ang bagong App Password para sa "Mail"
+  3. I-copy ang 16-character password
+  4. I-set sa Render:
 ```
 EmailSettings__SmtpServer = smtp.gmail.com
 EmailSettings__SmtpPort = 587
-EmailSettings__SmtpUsername = jeremiahyu050@gmail.com
-EmailSettings__SmtpPassword = vwcedwlhgetrrgux
-EmailSettings__FromEmail = jeremiahyu050@gmail.com
+EmailSettings__SmtpUsername = your-email@gmail.com
+EmailSettings__SmtpPassword = your-app-password
+EmailSettings__FromEmail = your-email@gmail.com
 EmailSettings__FromName = Property Inventory System
 ```
 

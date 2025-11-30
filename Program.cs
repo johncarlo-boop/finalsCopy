@@ -78,7 +78,9 @@ app.MapHub<PropertyHub>("/propertyHub");
 // Configure to listen on the PORT environment variable (provided by Render)
 // Only use HTTP - Render handles HTTPS termination at the load balancer
 var port = Environment.GetEnvironmentVariable("PORT") ?? "5000";
-var url = $"http://0.0.0.0:{port}";
+// Use localhost for development, 0.0.0.0 for production (Render)
+var host = app.Environment.IsDevelopment() ? "localhost" : "0.0.0.0";
+var url = $"http://{host}:{port}";
 app.Urls.Clear();
 app.Urls.Add(url);
 

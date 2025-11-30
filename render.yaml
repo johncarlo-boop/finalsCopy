@@ -15,10 +15,18 @@ services:
       - key: Firebase__CredentialsPath
         value: firebase-credentials.json
       # Email Settings
+      # NOTE: Render free tier blocks ports 25, 465, 587
+      # Using SMTP2GO with port 2525 (works on Render free tier)
+      # Free tier: 1,000 emails/month, 200/day
       - key: EmailSettings__SmtpServer
-        value: smtp.gmail.com
+        value: mail.smtp2go.com
       - key: EmailSettings__SmtpPort
-        value: "587"
+        value: "2525"
+      # Alternative: Gmail SMTP (requires paid Render plan)
+      # - key: EmailSettings__SmtpServer
+      #   value: smtp.gmail.com
+      # - key: EmailSettings__SmtpPort
+      #   value: "587"
       - key: EmailSettings__SmtpUsername
         sync: false
       - key: EmailSettings__SmtpPassword
