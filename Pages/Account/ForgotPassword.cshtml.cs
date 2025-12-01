@@ -19,6 +19,8 @@ public class ForgotPasswordModel : PageModel
     [BindProperty]
     public InputModel Input { get; set; } = default!;
 
+    public string? ReturnUrl { get; set; }
+
     public class InputModel
     {
         [Required]
@@ -27,11 +29,12 @@ public class ForgotPasswordModel : PageModel
         public string Email { get; set; } = string.Empty;
     }
 
-    public void OnGet()
+    public void OnGet(string? returnUrl = null)
     {
+        ReturnUrl = returnUrl;
     }
 
-    public async Task<IActionResult> OnPostAsync()
+    public async Task<IActionResult> OnPostAsync(string? returnUrl = null)
     {
         if (ModelState.IsValid)
         {
@@ -41,16 +44,24 @@ public class ForgotPasswordModel : PageModel
             {
                 _logger.LogInformation("Temporary password sent to {Email}", Input.Email);
                 TempData["Success"] = "A temporary password has been sent to your email. Please check your inbox and login with the temporary password. You will be required to change it after logging in.";
+                
+                // Redirect back to the returnUrl if provided, otherwise go to admin login
+                if (!string.IsNullOrEmpty(returnUrl))
+                {
+                    return LocalRedirect(returnUrl);
+                }
                 return RedirectToPage("./Login");
             }
             else
             {
                 // Don't reveal if email exists or not for security
                 TempData["Error"] = "If an account with that email exists, a temporary password has been sent.";
+                ReturnUrl = returnUrl;
                 return Page();
             }
         }
 
+        ReturnUrl = returnUrl;
         return Page();
     }
 }
